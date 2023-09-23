@@ -1,13 +1,16 @@
 {
   "name": "bluenote-desktop",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "node src/main/scripts/build.debug.mjs && concurrently --kill-others vite \"electron .\""
+    "build:debug": "concurrently \"npm run -prefix bluenote-bluetooth build:debug\" \"node scripts/build.main.debug.mjs\" \"node scripts/build.preload.debug.mjs\"",
+    "predebug": "npm run build:debug",
+    "debug": "concurrently --kill-others vite \"electron .\""
   },
   "dependencies": {
-    "vue": "^3.3.4"
+    "vue": "^3.3.4",
+    "bluenote-bluetooth": "file:./bluenote-bluetooth"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.2.3",
