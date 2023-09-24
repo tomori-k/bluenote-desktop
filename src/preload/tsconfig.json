@@ -6,6 +6,7 @@
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
+    "moduleResolution": "Bundler",
 
     /* Linting */
     "strict": true,

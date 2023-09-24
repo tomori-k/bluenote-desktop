@@ -1,0 +1,44 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Main Process",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd"
+      },
+      "args": ["--remote-debugging-port=9223", "."],
+      "outputCapture": "std",
+      "outFiles": ["${workspaceRoot}/dist/main.js"],
+      "preLaunchTask": "npm: build:debug"
+    },
+    {
+      "name": "Debug Renderer Process",
+      "type": "chrome",
+      "request": "attach",
+      "port": 9223,
+      "restart": true,
+      "webRoot": "${workspaceFolder}/src/renderer",
+      "timeout": 60000
+    },
+    {
+      "name": "Vite",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/vite",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/vite.cmd"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug",
+      "configurations": ["Debug Main Process", "Debug Renderer Process", "Vite"]
+    }
+  ]
+}

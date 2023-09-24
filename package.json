@@ -4,13 +4,13 @@
   "version": "0.1.0",
   "main": "dist/main.js",
   "scripts": {
-    "build:debug": "concurrently \"npm run -prefix bluenote-bluetooth build:debug\" \"node scripts/build.main.debug.mjs\" \"node scripts/build.preload.debug.mjs\"",
+    "build:debug": "concurrently \"npm run -prefix bluenote-bluetooth build:debug\" \"node scripts/build.debug.mjs main\" \"node scripts/build.debug.mjs preload\"",
     "predebug": "npm run build:debug",
     "debug": "concurrently --kill-others vite \"electron .\""
   },
   "dependencies": {
-    "vue": "^3.3.4",
-    "bluenote-bluetooth": "file:./bluenote-bluetooth"
+    "bluenote-bluetooth": "file:./bluenote-bluetooth",
+    "vue": "^3.3.4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.2.3",
