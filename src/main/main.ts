@@ -59,8 +59,51 @@ const createWindow = async () => {
 
   setOnUpdatesRequested(async (_, uuid) => {
     console.log(`Update requested from: ${uuid}`)
-    await new Promise((x) => setTimeout(x, 3000))
-    passUpdates('[]')
+
+    // 最終同期時刻、現在時刻を取得
+    const syncState = (await prisma.syncState.findFirst({
+      where: {
+        deviceId: uuid,
+      },
+    })) ?? { deviceId: uuid, syncedAt: BigInt(0) }
+    const timestamp = Date.now()
+
+    // 更新分を取得
+    const updates = await prisma.note.findMany({
+      where: {
+        editorId: myDeviceId,
+        updatedAt: {
+          gte: syncState.syncedAt,
+          lt: timestamp,
+        },
+      },
+    })
+
+    // 最終同期時刻を更新
+    await prisma.syncState.upsert({
+      where: {
+        deviceId: syncState.deviceId,
+      },
+      create: {
+        deviceId: syncState.deviceId,
+        syncedAt: timestamp,
+      },
+      update: {
+        syncedAt: timestamp,
+      },
+    })
+
+    // bigint が素直に stringify できないときの hack
+    // todo: データベースのほうを素直に DateTime 型にする
+    const replacer = (_: string, value: any) =>
+      typeof value === 'bigint' ? Number(value) : value
+
+    const json = JSON.stringify(updates, replacer)
+
+    console.log(json)
+
+    // Rust 側に送信
+    passUpdates(json)
   })
 
   ipcMain.handle(IpcChannel.StartBluetoothScan, async () => {
@@ -144,13 +187,7 @@ const createWindow = async () => {
 
     for (const update of updates) {
       const added = await prisma.note.create({
-        data: {
-          id: update.id,
-          content: update.content,
-          editorId: update.editor,
-          createdAt: update.createdAt,
-          updatedAt: update.updatedAt,
-        },
+        data: update,
       })
       updatesAdded.push(added)
     }

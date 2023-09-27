@@ -11,17 +11,24 @@ datasource db {
 }
 
 model Device {
-  id   String  @id
-  name String
-  me   Boolean
-  Note Note[]
+  id        String      @id
+  name      String
+  me        Boolean
+  Note      Note[]
+  SyncState SyncState[]
 }
 
 model Note {
-  id        String @id // バイト配列にしたいよね
+  id        String @id // バイト配列にしたいよね -> まあ文字列でもええか！
   content   String
   editor    Device @relation(fields: [editorId], references: [id])
   editorId  String
   createdAt BigInt
   updatedAt BigInt
+}
+
+model SyncState {
+  device   Device @relation(fields: [deviceId], references: [id])
+  deviceId String @id
+  syncedAt BigInt
 }

@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 prisma/*.db
+prisma/*.db-journal
 
 # Editor directories and files
 .vscode/*
