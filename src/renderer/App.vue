@@ -43,7 +43,7 @@ function requestPairing(device: BluetoothDevice) {
 type Note = {
   id: string
   content: string
-  editor: string
+  editorId: string
   createdAt: Date
   updatedAt: Date
 }
@@ -51,18 +51,12 @@ type Note = {
 const input = ref<string>()
 const notes = ref<Note[]>([])
 
-function create() {
+async function create() {
   if (!input.value) return
 
-  const timestamp = new Date()
-  notes.value.push({
-    id: 'id',
-    content: input.value,
-    editor: 'editor',
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  })
+  const posted = await window.electronApi.create({ content: input.value })
 
+  notes.value.push(posted)
   input.value = ''
 }
 
@@ -85,6 +79,21 @@ function onBluetoothDeviceFound(device: BluetoothDevice) {
 async function load() {
   for (const note of await window.electronApi.getAllNotes()) {
     notes.value.push(note)
+  }
+}
+
+const isSyncing = ref(false)
+
+async function sync() {
+  isSyncing.value = true
+  try {
+    const updates = await window.electronApi.sync()
+
+    for (const note of updates) {
+      notes.value.push(note)
+    }
+  } finally {
+    isSyncing.value = false
   }
 }
 
@@ -121,8 +130,9 @@ onUnmounted(() => {
   <p>メモ</p>
   <ul>
     <li v-for="note in notes">
-      {{ note.id }},{{ note.content }},{{ note.editor }},{{ note.createdAt
-      }}{{ note.updatedAt }}
+      {{ note.id }},{{ note.content }},{{ note.editorId }},{{
+        note.createdAt
+      }},{{ note.updatedAt }}
     </li>
   </ul>
   <div>
@@ -130,7 +140,8 @@ onUnmounted(() => {
     <button type="button" @click="create">追加</button>
   </div>
   <div>
-    <button type="button" @click="load">更新分取得</button>
+    <div v-if="isSyncing">同期中...</div>
+    <button type="button" @click="sync">同期</button>
   </div>
 </template>
 

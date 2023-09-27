@@ -8,4 +8,6 @@ export enum IpcChannel {
   RequestPairing = 'request-pairing',
   RespondToPairingRequest = 'respond-to-pairing-request',
   GetAllNotes = 'get-all-notes',
+  Create = 'create',
+  Sync = 'sync',
 }

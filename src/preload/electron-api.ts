@@ -8,9 +8,12 @@ type BluetoothDevice = {
 type Note = {
   id: string
   content: string
-  editor: string
+  editorId: string
   createdAt: Date
   updatedAt: Date
+}
+type NotePost = {
+  content: string
 }
 type RespondToPairingRequest = (
   deviceName: string,
@@ -80,6 +83,14 @@ export const electronApi = {
   },
   async getAllNotes(): Promise<Note[]> {
     return await ipcRenderer.invoke(IpcChannel.GetAllNotes)
+  },
+  async create(note: NotePost): Promise<Note> {
+    const created = await ipcRenderer.invoke(IpcChannel.Create, note)
+    return created
+  },
+  async sync(): Promise<Note[]> {
+    const updates = await ipcRenderer.invoke(IpcChannel.Sync)
+    return updates
   },
 }
 

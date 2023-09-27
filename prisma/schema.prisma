@@ -1,0 +1,27 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Device {
+  id   String  @id
+  name String
+  me   Boolean
+  Note Note[]
+}
+
+model Note {
+  id        String @id // バイト配列にしたいよね
+  content   String
+  editor    Device @relation(fields: [editorId], references: [id])
+  editorId  String
+  createdAt BigInt
+  updatedAt BigInt
+}

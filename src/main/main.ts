@@ -14,8 +14,12 @@ import {
   passUpdates,
 } from 'bluenote-bluetooth'
 import { IpcChannel } from '../preload/channel'
+import { PrismaClient } from '@prisma/client'
+import { randomUUID } from 'crypto'
 
-const createWindow = () => {
+const prisma = new PrismaClient()
+
+const createWindow = async () => {
   const window = new BrowserWindow({
     width: 800,
     height: 600,
@@ -23,6 +27,23 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
     },
   })
+
+  const myDeviceId = await (async function () {
+    // 初回起動時に自身のIDを生成
+    let device = await prisma.device.findFirst({ where: { me: true } })
+    if (device == null) {
+      device = await prisma.device.create({
+        data: {
+          id: randomUUID(),
+          name: '',
+          me: true,
+        },
+      })
+    }
+    return device.id
+  })()
+
+  console.log(`My device id: ${myDeviceId}`)
 
   setOnFound(async (_, deviceName, deviceId) => {
     window.webContents.send(
@@ -62,18 +83,79 @@ const createWindow = () => {
   })
 
   ipcMain.handle(IpcChannel.GetAllNotes, async (_) => {
-    const noteJsonList = await sync(
-      'b2ee7fae-e0dd-4f44-9171-92980fc5f84i' /* 自分のUUID */
-    )
+    const notes = await prisma.note.findMany({})
+
+    console.log(notes)
+
+    return notes
+  })
+
+  ipcMain.handle(IpcChannel.Create, async (_, note) => {
+    const timestamp = Date.now()
+    const id = randomUUID()
+    const created = await prisma.note.create({
+      data: {
+        id: id,
+        content: note.content,
+        editorId: myDeviceId,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    })
+    return created
+  })
+
+  // todo: なんとかする
+  async function wrappedSync() {
+    const noteJsonList = await sync(myDeviceId)
     const notes = []
     for (const noteJson of noteJsonList) {
       const noteList = JSON.parse(noteJson)
-      console.log(noteList)
       for (const note of noteList) {
         notes.push(note)
       }
     }
     return notes
+  }
+
+  ipcMain.handle(IpcChannel.Sync, async (_) => {
+    const updates = await wrappedSync()
+    const updatesAdded = []
+    const editors = new Set(updates.map((x) => x.editor))
+
+    // 新規デバイスがあれば DB に追加
+    for (const editor of editors) {
+      const device = await prisma.device.findFirst({
+        where: {
+          id: editor,
+        },
+      })
+
+      if (device == null) {
+        await prisma.device.create({
+          data: {
+            id: editor,
+            name: randomUUID(), // 一旦適当
+            me: false,
+          },
+        })
+      }
+    }
+
+    for (const update of updates) {
+      const added = await prisma.note.create({
+        data: {
+          id: update.id,
+          content: update.content,
+          editorId: update.editor,
+          createdAt: update.createdAt,
+          updatedAt: update.updatedAt,
+        },
+      })
+      updatesAdded.push(added)
+    }
+
+    return updatesAdded
   })
 
   // データ同期サーバ起動
@@ -82,11 +164,12 @@ const createWindow = () => {
   window.loadURL('http://localhost:5173')
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createWindow()
 })
 
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   console.log('quitting...')
   stopSyncServer()
+  await prisma.$disconnect()
 })
