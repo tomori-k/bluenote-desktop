@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useBluetoothScanState } from './composables/BluetoothScanState'
-import { useBluetoothDiscoverableState } from './composables/BluetoothDiscoverableState'
 
 const bluetoothScanState = useBluetoothScanState()
-const bluetoothDiscoverableState = useBluetoothDiscoverableState()
 
 function startBluetoothScan() {
   window.electronApi.startBluetoothScan()
@@ -104,9 +102,6 @@ onUnmounted(() => {
 
 <template>
   <div v-if="bluetoothScanState.isScanning.value">デバイスを検出中...</div>
-  <div v-if="bluetoothDiscoverableState.isDiscoverable.value">
-    他の端末から検出可能です。
-  </div>
   <div>
     <button type="button" @click="startBluetoothScan">検出</button>
   </div>

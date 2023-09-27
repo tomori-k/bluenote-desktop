@@ -62,11 +62,18 @@ const createWindow = () => {
   })
 
   ipcMain.handle(IpcChannel.GetAllNotes, async (_) => {
-    const notes = await sync(
-      'b2ee7fae-e0dd-4f44-9171-92980fc5f84c' /* 自分のUUID */
+    const noteJsonList = await sync(
+      'b2ee7fae-e0dd-4f44-9171-92980fc5f84i' /* 自分のUUID */
     )
-    console.log(notes)
-    return []
+    const notes = []
+    for (const noteJson of noteJsonList) {
+      const noteList = JSON.parse(noteJson)
+      console.log(noteList)
+      for (const note of noteList) {
+        notes.push(note)
+      }
+    }
+    return notes
   })
 
   // データ同期サーバ起動

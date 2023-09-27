@@ -38,7 +38,7 @@ static BLUETOOTH_SCANNER: BluetoothScanner = BluetoothScanner {
     on_added: Mutex::new(None),
 };
 
-#[napi]
+#[napi(ts_return_type = "Promise<void>")]
 pub fn start_sync_server() -> AsyncTask<SyncServerStartTask> {
     AsyncTask::new(SyncServerStartTask {})
 }
@@ -79,14 +79,14 @@ pub fn pass_updates(json: String) -> Result<()> {
     Ok(())
 }
 
-#[napi]
+#[napi(ts_return_type = "Promise<string[]>")]
 pub fn sync(device_id: String) -> AsyncTask<SyncTask> {
     AsyncTask::new(SyncTask { uuid: device_id })
 }
 
 // bond?
 
-#[napi]
+#[napi(ts_return_type = "Promise<void>")]
 pub fn pair(device_id: String) -> AsyncTask<PairTask> {
     AsyncTask::new(PairTask {
         device_id: device_id,
@@ -313,10 +313,10 @@ impl Task for SyncServerStartTask {
 
 // ↓↓↓
 
-async fn _sync(uuid: &str) -> windows::core::Result<()> {
+async fn _sync(uuid: &str) -> windows::core::Result<Vec<String>> {
     let selector = BluetoothDevice::GetDeviceSelectorFromPairingState(true)?;
     let devices = DeviceInformation::FindAllAsyncAqsFilter(&selector)?.await?;
-    let mut synced = 0;
+    let mut note_jsons = Vec::<String>::new();
 
     for d in devices {
         let device = BluetoothDevice::FromIdAsync(&d.Id()?)?.await?;
@@ -370,19 +370,20 @@ async fn _sync(uuid: &str) -> windows::core::Result<()> {
 
             println!("Received: {}", json);
 
+            note_jsons.push(json.to_string());
+
             writer.WriteByte(0)?;
             writer.StoreAsync()?.await?;
             writer.FlushAsync()?.await?;
         }
         println!("Connection closed.");
-        synced += 1;
     }
 
-    if synced == 0 {
+    if note_jsons.len() == 0 {
         println!("No bonded devices found.");
     }
 
-    Ok(())
+    Ok(note_jsons)
 }
 
 pub struct SyncTask {
@@ -401,7 +402,7 @@ impl Task for SyncTask {
         let future = _sync(&self.uuid);
 
         match rt.block_on(future) {
-            Ok(_) => Ok(vec!["[]".to_string()]),
+            Ok(note_jsons) => Ok(note_jsons),
             Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
         }
     }
