@@ -1,17 +1,14 @@
-#![deny(clippy::all)]
+// #![deny(clippy::all)]
 
-#[macro_use]
-extern crate napi_derive;
+// #[macro_use]
+// extern crate napi_derive;
 
 use napi::threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction};
-use napi::{bindgen_prelude::*, JsString, JsUndefined};
+use napi::{bindgen_prelude::*, JsUndefined};
 use napi_derive::napi;
-use std::collections::HashSet;
-use std::rc::Rc;
-use std::sync::{mpsc, Arc};
-use tokio::sync::{oneshot, Mutex};
+use std::sync::Mutex;
+use tokio::sync::oneshot;
 use windows::core::{h, GUID, HRESULT, HSTRING};
-use windows::Devices::Bluetooth::Advertisement::*;
 use windows::Devices::Bluetooth::Rfcomm::*;
 use windows::Devices::Bluetooth::*;
 use windows::Devices::Enumeration::{
@@ -21,71 +18,124 @@ use windows::Devices::Enumeration::{
 };
 use windows::Foundation::TypedEventHandler;
 use windows::Networking::Sockets::*;
-use windows::Storage::Streams::{ByteOrder, DataReader, DataWriter, IBuffer};
+use windows::Storage::Streams::{ByteOrder, DataReader, DataWriter};
 
 static UUID_RFCOMM_SERVICE: &str = "41f4bde2-0492-4bf5-bae2-4451be148999";
-static UUID_GATT_SERVICE: &str = "ed8fff89-dabf-4ff5-b962-cb6f3c52c7ec";
-static UUID_GATT_CHARACTERISTIC: &str = "ca821ce5-e766-4ae5-af9f-be2dab7b0871";
 
-static CALLBACK_BONDED: std::sync::Mutex<Option<ThreadsafeFunction<String>>> =
-    std::sync::Mutex::new(None);
+static SYNC_SERVER: SyncServer = SyncServer {
+    inner: Mutex::new(None),
+    request_updates: Mutex::new(None),
+    tx: Mutex::new(None),
+};
 
-static CALLBACK_FOUND: std::sync::Mutex<Option<ThreadsafeFunction<MyDevice>>> =
-    std::sync::Mutex::new(None);
+static PAIRING: Pairing = Pairing {
+    tx_accept: Mutex::new(None),
+    request_accept: Mutex::new(None),
+};
 
-static CALLBACK_PAIRING_REQUESTED: std::sync::Mutex<Option<ThreadsafeFunction<(String, String)>>> =
-    std::sync::Mutex::new(None);
+static BLUETOOTH_SCANNER: BluetoothScanner = BluetoothScanner {
+    watcher: Mutex::new(None),
+    on_added: Mutex::new(None),
+};
 
-static PAIRING: std::sync::Mutex<Pairing> = std::sync::Mutex::new(Pairing {
-    provider: None,
-    listener: None,
-});
-
-static PAIRING_CONNECT_STATE: std::sync::Mutex<PairingConnectState> =
-    std::sync::Mutex::new(PairingConnectState { request: None });
-
-static BL_SCANNER: std::sync::Mutex<BluetoothScanner> =
-    std::sync::Mutex::new(BluetoothScanner { watcher: None });
-
-struct MyDevice {
-    name: String,
-    id: String,
+#[napi]
+pub fn start_sync_server() -> AsyncTask<SyncServerStartTask> {
+    AsyncTask::new(SyncServerStartTask {})
 }
 
-// export
+#[napi]
+pub fn stop_sync_server() -> Result<()> {
+    match SYNC_SERVER.stop() {
+        Ok(_) => Ok(()),
+        Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
+    }
+}
 
+// デバイス<UUID> から更新分の送信リクエストが来た時のコールバックを設定
 #[napi(ts_args_type = "callback: (err: null | Error, uuid: string) => void")]
-pub fn set_on_bonded(env: Env, callback: JsFunction) -> Result<()> {
-    let tsfn =
-        env.create_threadsafe_function(&callback, 0, |ctx: ThreadSafeCallContext<String>| {
-            // Callbackの引数のRustの型をJavaScriptの型（のVec）へ変換する！
-            vec![ctx.value]
-                .iter()
-                .map(|x| ctx.env.create_string(&x))
-                .collect()
-        })?;
+pub fn set_on_updates_requested(callback: JsFunction) -> Result<()> {
+    let tsfn = callback.create_threadsafe_function(0, |ctx: ThreadSafeCallContext<String>| {
+        vec![ctx.value]
+            .iter()
+            .map(|x| ctx.env.create_string(&x))
+            .collect()
+    })?;
 
-    let mut callback_bonded = CALLBACK_BONDED.lock().unwrap();
-    *callback_bonded = Some(tsfn);
+    let mut request_updates = SYNC_SERVER.request_updates.lock().unwrap();
+    *request_updates = Some(tsfn);
 
     Ok(())
+}
+
+// 更新分の送信リクエストに対する返信用関数
+#[napi]
+pub fn pass_updates(json: String) -> Result<()> {
+    let mut tx = SYNC_SERVER.tx.lock().unwrap();
+
+    if let Some(tx) = tx.take() {
+        tx.send(json).unwrap();
+    }
+
+    Ok(())
+}
+
+#[napi]
+pub fn sync(device_id: String) -> AsyncTask<SyncTask> {
+    AsyncTask::new(SyncTask { uuid: device_id })
+}
+
+// bond?
+
+#[napi]
+pub fn pair(device_id: String) -> AsyncTask<PairTask> {
+    AsyncTask::new(PairTask {
+        device_id: device_id,
+    })
+}
+
+#[napi]
+pub fn respond_to_pair_request(accept: bool) {
+    let mut tx = PAIRING.tx_accept.lock().unwrap();
+
+    if let Some(tx) = tx.take() {
+        tx.send(accept).unwrap();
+    }
 }
 
 #[napi(
     ts_args_type = "callback: (err: null | Error, deviceName: string, deviceId: string) => void"
 )]
 pub fn set_on_found(callback: JsFunction) -> Result<()> {
-    let tsfn = callback.create_threadsafe_function(0, |ctx: ThreadSafeCallContext<MyDevice>| {
-        vec![ctx.value.name, ctx.value.id]
-            .iter()
-            .map(|x| ctx.env.create_string(&x))
-            .collect()
-    })?;
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<(String, String)>| {
+            vec![ctx.value.0, ctx.value.1]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
 
-    let mut callback_found = CALLBACK_FOUND.lock().unwrap();
-    *callback_found = Some(tsfn);
+    let mut on_found = BLUETOOTH_SCANNER.on_added.lock().unwrap();
+    *on_found = Some(tsfn);
 
     Ok(())
+}
+
+#[napi]
+pub fn start_bluetooth_scan() -> Result<()> {
+    match BLUETOOTH_SCANNER.start() {
+        Ok(_) => Ok(()),
+        Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
+    }
+}
+
+#[napi]
+pub fn stop_bluetooth_scan() -> Result<()> {
+    match BLUETOOTH_SCANNER.stop() {
+        Ok(_) => Ok(()),
+        Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
+    }
 }
 
 #[napi(ts_args_type = "callback: (err: null | Error, deviceName: string, pin: string) => void")]
@@ -100,728 +150,464 @@ pub fn set_on_pairing_requested(callback: JsFunction) -> Result<()> {
         },
     )?;
 
-    let mut callback = CALLBACK_PAIRING_REQUESTED.lock().unwrap();
+    let mut callback = PAIRING.request_accept.lock().unwrap();
     *callback = Some(tsfn);
 
     Ok(())
 }
 
-#[napi]
-pub fn start_bluetooth_scan() {
-    let mut scanner = BL_SCANNER.lock().unwrap();
-    scanner.start();
+// ↑↑↑
+
+struct SyncServerState {
+    listener: StreamSocketListener,
+    provider: RfcommServiceProvider,
 }
 
-#[napi]
-pub fn stop_bluetooth_scan() {
-    let mut scanner = BL_SCANNER.lock().unwrap();
-    scanner.stop();
+struct SyncServer {
+    inner: Mutex<Option<SyncServerState>>,
+    request_updates: Mutex<Option<ThreadsafeFunction<String>>>,
+    tx: Mutex<Option<oneshot::Sender<String>>>,
 }
 
-#[napi]
-pub fn pair_async(id: String) -> AsyncTask<AsyncConnect> {
-    AsyncTask::new(AsyncConnect { device_id: id })
-}
-
-#[napi]
-pub fn accept_pairing() {
-    let mut state = PAIRING_CONNECT_STATE.lock().unwrap();
-    if state.is_pairing() {
-        println!("accept!");
-        state.accept();
-    }
-}
-
-#[napi]
-pub fn reject_pairing() {
-    let mut state = PAIRING_CONNECT_STATE.lock().unwrap();
-    if state.is_pairing() {
-        println!("reject!");
-        state.reject();
-    }
-}
-
-#[napi]
-pub fn fetch_notes_async() -> AsyncTask<AsyncFetch> {
-    AsyncTask::new(AsyncFetch {})
-}
-
-#[napi]
-pub fn make_discoverable(device_id: String) -> AsyncTask<AsyncDiscoverable> {
-    AsyncTask::new(AsyncDiscoverable { device_id })
-}
-
-#[napi]
-pub fn unmake_discoverable() {
-    let mut pairing = PAIRING.lock().unwrap();
-    pairing.unmake_discoverable();
-}
-
-// RFCOMM listener
-
-fn on_received(
-    _: &Option<StreamSocketListener>,
-    e: &Option<StreamSocketListenerConnectionReceivedEventArgs>,
-) -> std::result::Result<(), windows::core::Error> {
-    println!("Connected via RFCOMM");
-
-    let mut pairing = PAIRING.lock().unwrap();
-
-    pairing.unmake_discoverable()?;
-
-    let socket = e.as_ref().unwrap().Socket()?;
-    let input_stream = socket.InputStream().unwrap();
-    let output_stream = socket.OutputStream().unwrap();
-    let writer = DataWriter::CreateDataWriter(&output_stream).unwrap();
-    let reader = DataReader::CreateDataReader(&input_stream).unwrap();
-    let local = tokio::task::LocalSet::new();
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
-    writer.SetByteOrder(ByteOrder::LittleEndian)?;
-    reader.SetByteOrder(ByteOrder::LittleEndian)?;
-
-    let writer_sender = Rc::new(writer);
-    let reader_sender = Rc::new(reader);
-    let writer_receiver = writer_sender.clone();
-    let reader_receiver = reader_sender.clone();
-
-    local.spawn_local(async move {
-        // todo: ちゃんと書く
-
-        let uuid_bytes = "19259453-a905-45a6-aeef-93c29b5fc598".as_bytes();
-
-        println!("{}", uuid_bytes.len());
-
-        // 自身のデバイスID(UUID v4)の書き込み
-        writer_sender.WriteBytes(uuid_bytes).unwrap();
-        writer_sender.StoreAsync().unwrap().await;
-        writer_sender.FlushAsync().unwrap().await.unwrap();
-
-        // 相手のデバイスIDの受け取り
-        let mut buffer = [0u8; 36];
-        reader_receiver.LoadAsync(36).unwrap().await; // 36バイト固定
-        reader_receiver.ReadBytes(buffer.as_mut_slice()).unwrap();
-
-        let uuid = String::from_utf8(buffer.to_vec()).unwrap();
-
-        println!("{}", uuid);
-
-        // ACK を返す
-        writer_receiver.WriteByte(0);
-        writer_receiver.StoreAsync().unwrap().await;
-        writer_receiver.FlushAsync().unwrap().await; // 必要
-
-        // ACK 確認
-        reader_sender.LoadAsync(1).unwrap().await;
-        reader_sender.ReadByte();
-
-        println!("Finished");
-
-        // callback
-        let callback = CALLBACK_BONDED.lock().unwrap();
-
-        if let Some(f) = &*callback {
-            f.call(
-                Ok(uuid),
-                napi::threadsafe_function::ThreadsafeFunctionCallMode::Blocking,
-            );
-        }
-
-        println!("Callback called.");
-    });
-
-    rt.block_on(local);
-
-    Ok(())
-}
-
-// Bluetooth デバイス検出
-
-fn on_added(
-    _: &Option<DeviceWatcher>,
-    info: &Option<DeviceInformation>,
-) -> windows::core::Result<()> {
-    let info = info.as_ref().unwrap();
-    let name = info.Name()?;
-    let id = info.Id()?;
-
-    let local = tokio::task::LocalSet::new();
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
-    // 普通に tokio::spawn() するとコンパイルは通るけど panic する...。tokio わからん
-    local.spawn_local(async move {
-        let bluetooth_device = BluetoothDevice::FromIdAsync(&id).unwrap().await.unwrap();
-        let rfcomm_services = bluetooth_device
-            .GetRfcommServicesForIdWithCacheModeAsync(
-                &RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE)).unwrap(),
-                BluetoothCacheMode::Uncached,
-            )
-            .unwrap()
-            .await
-            .unwrap();
-
-        if rfcomm_services.Services().unwrap().Size().unwrap() == 0 {
-            return;
-        }
-
-        let callback = CALLBACK_FOUND.lock().unwrap();
-
-        if let Some(f) = &*callback {
-            let device = MyDevice {
-                name: name.to_string(),
-                id: id.to_string(),
-            };
-
-            f.call(
-                Ok(device),
-                napi::threadsafe_function::ThreadsafeFunctionCallMode::Blocking,
-            );
-        }
-    });
-
-    rt.block_on(local);
-
-    Ok(())
-}
-
-// ペアリングリクエスト
-
-fn on_pairing_requested(
-    _: &Option<DeviceInformationCustomPairing>,
-    e: &Option<DevicePairingRequestedEventArgs>,
-) -> windows::core::Result<()> {
-    let e = e.as_ref().unwrap();
-
-    println!("On pairing requested");
-
-    if e.PairingKind()? != DevicePairingKinds::ConfirmPinMatch {
-        return Err(windows::core::Error::new(
-            HRESULT(0x80004004u32 as i32),
-            h!("Only ConfirmPinMatch is allowed for a pairing kind.").to_owned(),
-        ));
-    }
-
-    let rx: oneshot::Receiver<bool>;
-
-    {
-        let mut state = PAIRING_CONNECT_STATE.lock().unwrap();
-
-        if state.is_pairing() {
-            // もしくはなにもせずに return (=ペアリング拒否) もあり？
-            return Err(windows::core::Error::new(
-                HRESULT(0x80004004u32 as i32),
-                h!("Another device is pairing.").to_owned(),
-            ));
-        }
-
-        let tx: oneshot::Sender<bool>;
-
-        (tx, rx) = oneshot::channel();
-        state.request = Some(tx);
-    }
-
-    // We show the PIN here and the user responds with whether the PIN matches what they see
-    // on the target device. Response comes back and we set it on the PinComparePairingRequestedData
-    // then complete the deferral.
-
-    let device_name = e.DeviceInformation()?.Name()?.to_string();
-    let pin = e.Pin()?.to_string();
-
-    println!("PIN: {}", pin);
-
-    let callback = CALLBACK_PAIRING_REQUESTED.lock().unwrap();
-
-    if let Some(f) = &*callback {
-        f.call(
-            Ok((device_name, pin)),
-            napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
-        );
-    }
-
-    let accept = rx.blocking_recv().unwrap();
-
-    if accept {
-        e.Accept()?;
-    }
-
-    Ok(())
-}
-
-async fn pair(id: &str) -> windows::core::Result<()> {
-    let device = BluetoothDevice::FromIdAsync(&HSTRING::from(id))?.await?;
-    let service_id = RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE))?;
-    let services = device
-        .GetRfcommServicesForIdWithCacheModeAsync(&service_id, BluetoothCacheMode::Uncached)?
-        .await?;
-
-    if services.Services()?.Size()? == 0 {
-        return Err(windows::core::Error::new(
-            HRESULT(0x80004004u32 as i32),
-            h!("The device doesn't have the specified service.").to_owned(),
-        ));
-    }
-
-    let is_paired = device.DeviceInformation()?.Pairing()?.IsPaired()?;
-
-    println!("{}", if is_paired { "Paired" } else { "Not paired" });
-
-    if !is_paired {
-        let custom_pairing = device.DeviceInformation()?.Pairing()?.Custom()?;
-
-        custom_pairing.PairingRequested(&TypedEventHandler::new(on_pairing_requested))?;
-
-        println!("Pairing...");
-
-        let result = custom_pairing
-            .PairWithProtectionLevelAsync(
-                DevicePairingKinds::ConfirmPinMatch,
-                DevicePairingProtectionLevel::Default,
-            )?
-            .await?;
-
+impl SyncServer {
+    fn on_received(
+        &'static self,
+        _: &Option<StreamSocketListener>,
+        e: &Option<StreamSocketListenerConnectionReceivedEventArgs>,
+    ) -> windows::core::Result<()> {
         println!(
-            "Pairing Result: {}",
-            match result.Status()? {
-                DevicePairingResultStatus::Paired => "Success",
-                _ => "Failed",
-            }
+            "Connected to: {}",
+            e.as_ref()
+                .unwrap()
+                .Socket()?
+                .Information()?
+                .RemoteHostName()?
+                .DisplayName()?
         );
 
-        if result.Status()? != DevicePairingResultStatus::Paired {
-            return Err(windows::core::Error::new(
-                HRESULT(0x80004004u32 as i32),
-                h!("Pairing failed.").to_owned(),
-            ));
-        }
-    }
-
-    let service = services.Services()?.GetAt(0)?;
-    let socket = StreamSocket::new()?;
-
-    socket
-        .ConnectAsync(
-            &service.ConnectionHostName()?,
-            &service.ConnectionServiceName()?,
-        )?
-        .await?;
-
-    println!("Connected!");
-
-    // UUIDのやりとり
-
-    let input_stream = socket.InputStream()?;
-    let output_stream = socket.OutputStream()?;
-    let writer = DataWriter::CreateDataWriter(&output_stream)?;
-    let reader = DataReader::CreateDataReader(&input_stream)?;
-    let uuid_bytes = "19259453-a905-45a6-aeef-93c29b5fc598".as_bytes();
-
-    writer.SetByteOrder(ByteOrder::LittleEndian)?;
-    reader.SetByteOrder(ByteOrder::LittleEndian)?;
-
-    // 自身のデバイスID(UUID v4)の書き込み
-    writer.WriteBytes(uuid_bytes)?;
-    writer.StoreAsync()?.await?;
-    writer.FlushAsync()?.await?;
-
-    // 相手のデバイスIDの受け取り
-    let mut buffer = [0u8; 36];
-    reader.LoadAsync(36)?.await?; // 36バイト固定
-    reader.ReadBytes(buffer.as_mut_slice())?;
-
-    let uuid = String::from_utf8(buffer.to_vec()).unwrap();
-
-    println!("{}", uuid);
-
-    // ACK を返す
-    writer.WriteByte(0)?;
-    writer.StoreAsync()?.await?;
-    writer.FlushAsync()?.await?; // 必要
-
-    // ACK 確認
-    reader.LoadAsync(1)?.await?;
-    reader.ReadByte()?;
-
-    println!("Pairing Finished!");
-
-    Ok(())
-}
-
-struct PairingConnectState {
-    request: Option<oneshot::Sender<bool>>,
-}
-
-impl PairingConnectState {
-    fn is_pairing(&self) -> bool {
-        self.request.is_some()
-    }
-
-    fn accept(&mut self) {
-        let tx = self.request.take();
-
-        if let Some(tx) = tx {
-            tx.send(true);
-            self.request = None;
-        }
-    }
-
-    fn reject(&mut self) {
-        let tx = self.request.take();
-
-        if let Some(tx) = tx {
-            tx.send(false);
-            self.request = None;
-        }
-    }
-}
-
-pub struct AsyncConnect {
-    device_id: String,
-}
-
-impl Task for AsyncConnect {
-    type Output = ();
-    type JsValue = JsUndefined;
-
-    fn compute(&mut self) -> Result<Self::Output> {
+        let socket = e.as_ref().unwrap().Socket()?;
+        let input_stream = socket.InputStream().unwrap();
+        let output_stream = socket.OutputStream().unwrap();
+        let reader = DataReader::CreateDataReader(&input_stream)?;
+        let writer = DataWriter::CreateDataWriter(&output_stream)?;
+        let local = tokio::task::LocalSet::new();
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap();
-        let future = pair(&self.device_id);
 
-        rt.block_on(future).unwrap();
+        reader.SetByteOrder(ByteOrder::LittleEndian)?;
+        writer.SetByteOrder(ByteOrder::LittleEndian)?;
+
+        local.spawn_local(async move {
+            reader.LoadAsync(36)?.await?;
+            let uuid = reader.ReadString(36)?.to_string();
+
+            println!("UUID: {}", uuid);
+
+            // 更新分を JS 側から取得
+
+            let (tx, rx) = oneshot::channel();
+            {
+                let mut tx_self = self.tx.lock().unwrap();
+                *tx_self = Some(tx);
+            }
+
+            if let Some(request_updates) = self.request_updates.lock().unwrap().as_ref() {
+                request_updates.call(
+                    Ok(uuid),
+                    napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
+                );
+            }
+
+            let json = rx.await.unwrap();
+
+            // JSON 書き込み
+            let json = json.as_bytes();
+
+            writer.WriteUInt32(json.len() as u32)?;
+            writer.WriteBytes(json)?;
+            writer.StoreAsync()?.await?;
+            writer.FlushAsync()?.await?;
+
+            // ACK 読み取り
+            reader.LoadAsync(1)?.await?;
+            reader.ReadByte()?;
+
+            drop(socket);
+
+            println!("Connection closed.");
+
+            Ok::<(), windows::core::Error>(())
+        });
+
+        rt.block_on(local);
 
         Ok(())
     }
 
-    fn resolve(&mut self, env: Env, _: Self::Output) -> Result<Self::JsValue> {
-        env.get_undefined()
-    }
-}
+    async fn start(&'static self) -> windows::core::Result<()> {
+        let mut inner = self.inner.lock().unwrap();
 
-pub struct AsyncDiscoverable {
-    device_id: String,
-}
-
-impl Task for AsyncDiscoverable {
-    type Output = ();
-    type JsValue = JsUndefined;
-
-    fn compute(&mut self) -> Result<Self::Output> {
-        let mut pairing = PAIRING.lock().unwrap();
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        let future = pairing.make_discoverable(&self.device_id);
-
-        rt.block_on(future);
-
-        Ok(())
-    }
-
-    fn resolve(&mut self, env: Env, _: Self::Output) -> Result<Self::JsValue> {
-        env.get_undefined()
-    }
-}
-
-struct Pairing {
-    provider: Option<RfcommServiceProvider>,
-    listener: Option<StreamSocketListener>,
-}
-
-impl Pairing {
-    async fn make_discoverable(&mut self, device_id: &str) -> windows::core::Result<()> {
-        // すでに開始済み
-        if let Some(_) = &self.provider {
+        if inner.is_some() {
             return Ok(());
         }
 
         let rfcomm_service_id = RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE))?;
         let provider = RfcommServiceProvider::CreateAsync(&rfcomm_service_id)?.await?;
-        let service_id_str = provider.ServiceId()?.AsString()?;
         let listener = StreamSocketListener::new()?;
 
-        listener.ConnectionReceived(&TypedEventHandler::new(on_received))?;
+        *inner = Some(SyncServerState { listener, provider });
+
+        let listener = &inner.as_ref().unwrap().listener;
+        let provider = &inner.as_ref().unwrap().provider;
+
+        listener.ConnectionReceived(&TypedEventHandler::new(|s, e| self.on_received(s, e)))?;
         listener
             .BindServiceNameWithProtectionLevelAsync(
-                &service_id_str,
+                &provider.ServiceId()?.AsString()?,
                 SocketProtectionLevel::PlainSocket, /* Androidの設定と合わせる */
             )?
             .await?;
 
-        provider.StartAdvertisingWithRadioDiscoverability(&listener, true)?; // 必要
-
-        self.provider = Some(provider);
-        self.listener = Some(listener);
+        provider.StartAdvertising(listener)?; // 必要
 
         Ok(())
     }
 
-    fn unmake_discoverable(&mut self) -> windows::core::Result<()> {
-        if let Some(provider) = &self.provider {
-            provider.StopAdvertising()?;
-            self.provider = None;
-            self.listener = None;
+    fn stop(&self) -> windows::core::Result<()> {
+        let mut inner = self.inner.lock().unwrap();
+
+        if let Some(state) = inner.as_ref() {
+            state.provider.StopAdvertising()?;
+            *inner = None;
         }
 
         Ok(())
+    }
+}
+
+pub struct SyncServerStartTask {}
+
+impl Task for SyncServerStartTask {
+    type Output = ();
+    type JsValue = JsUndefined;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let future = SYNC_SERVER.start();
+
+        match rt.block_on(future) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
+        }
+    }
+
+    fn resolve(&mut self, env: Env, _: Self::Output) -> Result<Self::JsValue> {
+        env.get_undefined()
+    }
+}
+
+// ↓↓↓
+
+async fn _sync(uuid: &str) -> windows::core::Result<()> {
+    let selector = BluetoothDevice::GetDeviceSelectorFromPairingState(true)?;
+    let devices = DeviceInformation::FindAllAsyncAqsFilter(&selector)?.await?;
+    let mut synced = 0;
+
+    for d in devices {
+        let device = BluetoothDevice::FromIdAsync(&d.Id()?)?.await?;
+        let service_id = RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE))?;
+        let rfcomm_services = device
+            .GetRfcommServicesForIdWithCacheModeAsync(&service_id, BluetoothCacheMode::Uncached)?
+            .await?
+            .Services()?;
+
+        if rfcomm_services.Size()? == 0 {
+            continue;
+        }
+
+        println!("{}", device.Name()?);
+
+        let service = rfcomm_services.GetAt(0)?;
+        {
+            let socket = StreamSocket::new()?;
+
+            socket
+                .ConnectWithProtectionLevelAsync(
+                    &service.ConnectionHostName()?,
+                    &service.ConnectionServiceName()?,
+                    SocketProtectionLevel::PlainSocket,
+                )?
+                .await?;
+
+            // The socket is connected. At this point the App can wait for
+            // the user to take some action, for example, click a button to send a
+            // file to the device, which could invoke the Picker and then
+            // send the picked file. The transfer itself would use the
+            // Sockets API and not the Rfcomm API, and so is omitted here for
+            // brevity.
+
+            println!("Connected!");
+
+            let writer = DataWriter::CreateDataWriter(&socket.OutputStream()?)?;
+            let reader = DataReader::CreateDataReader(&socket.InputStream()?)?;
+
+            writer.SetByteOrder(ByteOrder::LittleEndian)?;
+            reader.SetByteOrder(ByteOrder::LittleEndian)?;
+
+            writer.WriteBytes(uuid.as_bytes())?;
+            writer.StoreAsync()?.await?;
+            writer.FlushAsync()?.await?;
+
+            reader.LoadAsync(4)?.await?;
+            let size = reader.ReadUInt32()?;
+            reader.LoadAsync(size)?.await?;
+            let json = reader.ReadString(size)?;
+
+            println!("Received: {}", json);
+
+            writer.WriteByte(0)?;
+            writer.StoreAsync()?.await?;
+            writer.FlushAsync()?.await?;
+        }
+        println!("Connection closed.");
+        synced += 1;
+    }
+
+    if synced == 0 {
+        println!("No bonded devices found.");
+    }
+
+    Ok(())
+}
+
+pub struct SyncTask {
+    uuid: String,
+}
+
+impl Task for SyncTask {
+    type Output = Vec<String>;
+    type JsValue = Array;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let future = _sync(&self.uuid);
+
+        match rt.block_on(future) {
+            Ok(_) => Ok(vec!["[]".to_string()]),
+            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
+        }
+    }
+
+    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        let mut array = env.create_array(output.len() as u32)?;
+
+        for i in 0..output.len() {
+            array.set(i as u32, env.create_string(&output[i]))?;
+        }
+
+        Ok(array)
+    }
+}
+
+struct Pairing {
+    tx_accept: Mutex<Option<oneshot::Sender<bool>>>,
+    request_accept: Mutex<Option<ThreadsafeFunction<(String, String)>>>,
+}
+
+impl Pairing {
+    async fn pair(&'static self, device_id: &str) -> windows::core::Result<()> {
+        let bluetooth_device = BluetoothDevice::FromIdAsync(&HSTRING::from(device_id))?.await?;
+        let rfcomm_services = bluetooth_device
+            .GetRfcommServicesForIdWithCacheModeAsync(
+                &RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE))?,
+                BluetoothCacheMode::Uncached,
+            )?
+            .await?;
+
+        // 特定のサービスIDをもっているデバイスのみ対象
+        if rfcomm_services.Services()?.Size()? > 0 {
+            let pairing = bluetooth_device.DeviceInformation()?.Pairing()?;
+            let is_paired = pairing.IsPaired()?;
+
+            println!("{}", if is_paired { "Paired" } else { "Not Paired" });
+
+            if !is_paired {
+                let custom_pairing = pairing.Custom()?;
+                custom_pairing.PairingRequested(&TypedEventHandler::new(|s, e| {
+                    self.on_pairing_requested(s, e)
+                }))?;
+
+                let result = custom_pairing
+                    .PairWithProtectionLevelAsync(
+                        DevicePairingKinds::ConfirmPinMatch,
+                        DevicePairingProtectionLevel::Default,
+                    )?
+                    .await?;
+
+                println!(
+                    "Pairing result: {}",
+                    if result.Status()? == DevicePairingResultStatus::Paired {
+                        "Success"
+                    } else {
+                        "Failed"
+                    }
+                );
+            }
+        } else {
+            println!("Device seems not to have Bluenote app.");
+        }
+
+        Ok(())
+    }
+
+    fn on_pairing_requested(
+        &'static self,
+        _: &Option<DeviceInformationCustomPairing>,
+        e: &Option<DevicePairingRequestedEventArgs>,
+    ) -> windows::core::Result<()> {
+        let e = e.as_ref().unwrap();
+
+        println!("On pairing requested");
+
+        if e.PairingKind()? != DevicePairingKinds::ConfirmPinMatch {
+            return Err(windows::core::Error::new(
+                HRESULT(0x80004004u32 as i32),
+                h!("Only ConfirmPinMatch is allowed for a pairing kind.").to_owned(),
+            ));
+        }
+
+        let rx: oneshot::Receiver<bool>;
+        {
+            let mut tx_accept = self.tx_accept.lock().unwrap();
+
+            if tx_accept.is_some() {
+                // 別のデバイスのペアリング中
+                // もしくはなにもせずに return (=ペアリング拒否) もあり？
+                return Err(windows::core::Error::new(
+                    HRESULT(0x80004004u32 as i32),
+                    h!("Another device is pairing.").to_owned(),
+                ));
+            }
+
+            let tx: oneshot::Sender<bool>;
+
+            (tx, rx) = oneshot::channel();
+            *tx_accept = Some(tx);
+        }
+
+        let device_name = e.DeviceInformation()?.Name()?.to_string();
+        let pin = e.Pin()?.to_string();
+
+        println!("PIN: {}", pin);
+
+        let request_accept = self.request_accept.lock().unwrap();
+
+        if let Some(request_accept) = &*request_accept {
+            request_accept.call(
+                Ok((device_name, pin)),
+                napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
+            );
+        }
+
+        let accept = rx.blocking_recv().unwrap();
+
+        if accept {
+            e.Accept()?;
+        }
+
+        Ok(())
+    }
+}
+
+pub struct PairTask {
+    device_id: String,
+}
+
+impl Task for PairTask {
+    type Output = ();
+    type JsValue = JsUndefined;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let future = PAIRING.pair(&self.device_id);
+
+        match rt.block_on(future) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
+        }
+    }
+
+    fn resolve(&mut self, env: Env, _: Self::Output) -> Result<Self::JsValue> {
+        env.get_undefined()
     }
 }
 
 struct BluetoothScanner {
-    watcher: Option<DeviceWatcher>,
+    watcher: Mutex<Option<DeviceWatcher>>,
+    on_added: Mutex<Option<ThreadsafeFunction<(String, String)>>>,
 }
 
 impl BluetoothScanner {
-    fn start(&mut self) -> windows::core::Result<()> {
-        if let Some(_) = &self.watcher {
+    fn start(&'static self) -> windows::core::Result<()> {
+        let mut watcher = self.watcher.lock().unwrap();
+
+        if watcher.is_some() {
             return Ok(());
         }
 
-        let watcher = DeviceInformation::CreateWatcherWithKindAqsFilterAndAdditionalProperties(
+        let w = DeviceInformation::CreateWatcherWithKindAqsFilterAndAdditionalProperties(
             h!("(System.Devices.Aep.ProtocolId:=\"{e0cbf06c-cd8b-4647-bb8a-263b43f0f974}\")"),
             None,
             DeviceInformationKind::AssociationEndpoint,
         )?;
 
-        watcher.Added(&TypedEventHandler::new(on_added))?;
-        watcher.Start()?;
+        w.Added(&TypedEventHandler::new(|s, e| self.on_added(s, e)))?;
+        w.Start()?;
 
-        self.watcher = Some(watcher);
+        *watcher = Some(w);
 
         Ok(())
     }
 
-    fn stop(&mut self) -> windows::core::Result<()> {
-        if let Some(watcher) = &self.watcher {
+    fn stop(&self) -> windows::core::Result<()> {
+        let mut watcher = self.watcher.lock().unwrap();
+
+        if let Some(watcher) = watcher.take() {
             watcher.Stop()?;
-            self.watcher = None;
         }
+
         Ok(())
     }
-}
 
-pub struct AsyncFetch {}
+    fn on_added(
+        &'static self,
+        _: &Option<DeviceWatcher>,
+        info: &Option<DeviceInformation>,
+    ) -> windows::core::Result<()> {
+        let info = info.as_ref().unwrap();
+        let name = info.Name()?.to_string();
+        let id = info.Id()?.to_string();
 
-impl Task for AsyncFetch {
-    type Output = String;
-    type JsValue = JsString;
+        let on_added = self.on_added.lock().unwrap();
 
-    fn compute(&mut self) -> Result<Self::Output> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        let json = rt.block_on(fetch_notes()).unwrap();
+        if let Some(on_added) = &*on_added {
+            on_added.call(
+                Ok((name, id)),
+                napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
+            );
+        }
 
-        Ok(json)
-    }
-
-    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
-        env.create_string(&output)
-    }
-}
-
-async fn fetch_notes() -> windows::core::Result<String> {
-    let watcher = BluetoothLEAdvertisementWatcher::new()?;
-    let advertisement = BluetoothLEAdvertisement::new()?;
-    let filter = BluetoothLEAdvertisementFilter::new()?;
-    let uuids = advertisement.ServiceUuids()?;
-    let mut scanned = HashSet::<u64>::new();
-    let (tx, rx) = mpsc::channel::<u64>();
-
-    uuids.Append(GUID::from(UUID_GATT_SERVICE))?;
-    filter.SetAdvertisement(&advertisement)?;
-    watcher.SetScanningMode(BluetoothLEScanningMode::Active)?;
-    watcher.SetAdvertisementFilter(&filter)?;
-    watcher.Received(&TypedEventHandler::new(
-        move |_, e: &Option<BluetoothLEAdvertisementReceivedEventArgs>| {
-            let e = e.as_ref().unwrap();
-            let name = e.Advertisement()?.LocalName()?;
-            let address = e.BluetoothAddress()?;
-
-            println!("{}", name);
-
-            if !scanned.contains(&address) {
-                tx.send(address).unwrap();
-                scanned.insert(address);
-            }
-
-            Ok(())
-        },
-    ))?;
-
-    watcher.Start()?;
-    println!("Scanning...");
-
-    tokio::time::sleep(tokio::time::Duration::from_millis(10000)).await;
-
-    watcher.Stop()?;
-    println!("Stopped.");
-
-    for received in rx.try_iter() {
-        println!("Bluetooth Address: {}", received);
-
-        let ble_device = BluetoothLEDevice::FromBluetoothAddressAsync(received)?.await?;
-        let services = ble_device
-            .GetGattServicesForUuidAsync(GUID::from(UUID_GATT_SERVICE))?
-            .await?;
-
-        println!("Service: {:?}", services.Status());
-
-        let characteristics = services
-            .Services()?
-            .GetAt(0)?
-            .GetCharacteristicsForUuidAsync(GUID::from(UUID_GATT_CHARACTERISTIC))?
-            .await?;
-
-        println!("Characteristics: {:?}", characteristics.Status());
-
-        let (tx_listen, rx_listen) = oneshot::channel();
-        let listen_task = tokio::spawn(async move {
-            let mut rfcomm_listen = RfcommListen {
-                tx: Some(tx_listen),
-            };
-            rfcomm_listen.listen().await.unwrap()
-        });
-
-        rx_listen.await;
-
-        let characteristic = characteristics.Characteristics()?.GetAt(0)?;
-        let data = characteristic.ReadValueAsync()?.await?.Value()?;
-        let message = ibuffer_to_string(&data)?;
-
-        println!("Value: {}", message);
-
-        let json = listen_task.await.unwrap();
-
-        println!("Received: {}", json);
-
-        return Ok(json);
-    }
-
-    Ok(String::from("ERROR"))
-}
-
-fn ibuffer_to_string(buffer: &IBuffer) -> windows::core::Result<String> {
-    // DataReader を使用して IBuffer から読み取る
-    let reader = DataReader::FromBuffer(buffer)?;
-
-    // バッファのサイズを取得
-    let length = buffer.Length()? as usize;
-
-    // バイトデータを格納するベクトルを用意
-    let mut vec = vec![0u8; length];
-
-    // バイトデータをベクトルに読み込む
-    reader.ReadBytes(&mut vec)?;
-
-    // UTF-8 として文字列に変換
-    let result = String::from_utf8(vec).unwrap();
-
-    Ok(result)
-}
-
-struct RfcommListen {
-    tx: Option<oneshot::Sender<()>>,
-}
-
-impl RfcommListen {
-    async fn listen(&mut self) -> windows::core::Result<String> {
-        let rfcomm_service_id = RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE))?;
-        let provider = RfcommServiceProvider::CreateAsync(&rfcomm_service_id)?.await?;
-        let service_id_str = provider.ServiceId()?.AsString()?;
-        let provider = Arc::new(Mutex::new(provider));
-        let provider_handler = Arc::clone(&provider);
-        // let provider_ref = &provider;
-        let listener = StreamSocketListener::new()?;
-        let (tx, rx) = oneshot::channel();
-        let mut tx = Some(tx);
-
-        listener.ConnectionReceived(&TypedEventHandler::new(
-            move |s: &Option<StreamSocketListener>,
-                  e: &Option<StreamSocketListenerConnectionReceivedEventArgs>| {
-                println!("Connected via RFCOMM");
-
-                let s = s.as_ref().unwrap();
-                let e = e.as_ref().unwrap();
-                let mut tx = tx.take();
-
-                // Stop advertising/listening so that we're only serving one client
-                provider_handler.blocking_lock().StopAdvertising();
-                drop(s);
-
-                // データ受信
-
-                let socket = e.Socket()?;
-                let local = tokio::task::LocalSet::new();
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap();
-
-                local.spawn_local(async move {
-                    let input_stream = socket.InputStream().unwrap();
-                    let output_stream = socket.OutputStream().unwrap();
-                    let reader = DataReader::CreateDataReader(&input_stream).unwrap();
-
-                    reader.SetByteOrder(ByteOrder::LittleEndian);
-
-                    // 1. 自身のデバイスID(UUID v4)の書き込み
-
-                    let writer = DataWriter::new().unwrap();
-                    writer.WriteBytes("19259453-a905-45a6-aeef-93c29b5fc598".as_bytes());
-                    let buffer = writer.DetachBuffer().unwrap();
-
-                    output_stream.WriteAsync(&buffer).unwrap().await;
-                    output_stream.FlushAsync().unwrap().await;
-
-                    // 2. 文字列サイズの受け取り
-                    reader.LoadAsync(4).unwrap().await;
-                    let size = reader.ReadInt32().unwrap() as usize;
-
-                    // 3. データ読み取り
-                    let mut buffer = vec![0u8; size];
-                    reader.LoadAsync(size as u32).unwrap().await.unwrap();
-                    reader.ReadBytes(buffer.as_mut_slice()).unwrap();
-                    let json = String::from_utf8(buffer).unwrap();
-
-                    // 4.  ACK を返す
-                    let writer = DataWriter::new().unwrap();
-                    writer.WriteByte(0);
-                    let buffer = writer.DetachBuffer().unwrap();
-
-                    output_stream.WriteAsync(&buffer).unwrap().await;
-                    output_stream.FlushAsync().unwrap().await; // 必要
-
-                    // 通信完了の通知を行う
-                    tx.take().unwrap().send(json).unwrap();
-                });
-
-                rt.block_on(local);
-
-                Ok(())
-            },
-        ))?;
-        listener
-            .BindServiceNameWithProtectionLevelAsync(
-                &service_id_str,
-                SocketProtectionLevel::PlainSocket, /* Androidの設定と合わせる */
-            )?
-            .await?;
-        provider.lock().await.StartAdvertising(&listener)?; // 必要
-
-        // Listen開始通知
-        self.tx.take().unwrap().send(());
-
-        // 通信終了まで待つ
-        Ok(rx.await.unwrap())
+        Ok(())
     }
 }

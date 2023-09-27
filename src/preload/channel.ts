@@ -7,4 +7,5 @@ export enum IpcChannel {
   MakeDiscoverable = 'make-discoverable',
   RequestPairing = 'request-pairing',
   RespondToPairingRequest = 'respond-to-pairing-request',
+  GetAllNotes = 'get-all-notes',
 }

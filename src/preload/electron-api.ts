@@ -5,6 +5,13 @@ type BluetoothDevice = {
   name: string
   id: string
 }
+type Note = {
+  id: string
+  content: string
+  editor: string
+  createdAt: Date
+  updatedAt: Date
+}
 type RespondToPairingRequest = (
   deviceName: string,
   pin: string
@@ -46,9 +53,6 @@ export const electronApi = {
   startBluetoothScan() {
     ipcRenderer.invoke(IpcChannel.StartBluetoothScan)
   },
-  makeDiscoverable() {
-    ipcRenderer.invoke(IpcChannel.MakeDiscoverable)
-  },
   requestPairing(deviceId: string) {
     ipcRenderer.invoke(IpcChannel.RequestPairing, deviceId)
   },
@@ -60,11 +64,6 @@ export const electronApi = {
   },
   setOnBluetoothScanStateChanged(callback: OnBluetoothScanStateChanged) {
     callbacksBluetoothScanStateChanged.push(callback)
-  },
-  setOnBluetoothDiscoverableStateChanged(
-    callback: OnBluetoothDiscoverableStateChanged
-  ) {
-    callbacksBluetoothDiscoverableStateChanged.push(callback)
   },
   removeOnPairingRequested(respond: RespondToPairingRequest) {
     if (respondToPairingRequest === respond) {
@@ -79,11 +78,8 @@ export const electronApi = {
     const i = callbacksBluetoothScanStateChanged.indexOf(callback)
     if (i !== -1) callbacksBluetoothScanStateChanged.splice(i, 1)
   },
-  removeOnBluetoothDiscoverableStateChanged(
-    callback: OnBluetoothDiscoverableStateChanged
-  ) {
-    const i = callbacksBluetoothDiscoverableStateChanged.indexOf(callback)
-    if (i !== -1) callbacksBluetoothDiscoverableStateChanged.splice(i, 1)
+  async getAllNotes(): Promise<Note[]> {
+    return await ipcRenderer.invoke(IpcChannel.GetAllNotes)
   },
 }
 

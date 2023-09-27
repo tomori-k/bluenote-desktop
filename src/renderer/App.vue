@@ -10,10 +10,6 @@ function startBluetoothScan() {
   window.electronApi.startBluetoothScan()
 }
 
-function makeDiscoverable() {
-  window.electronApi.makeDiscoverable()
-}
-
 type PairingRequest = {
   deviceName: string
   pin: string
@@ -46,6 +42,32 @@ function requestPairing(device: BluetoothDevice) {
   window.electronApi.requestPairing(device.id)
 }
 
+type Note = {
+  id: string
+  content: string
+  editor: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+const input = ref<string>()
+const notes = ref<Note[]>([])
+
+function create() {
+  if (!input.value) return
+
+  const timestamp = new Date()
+  notes.value.push({
+    id: 'id',
+    content: input.value,
+    editor: 'editor',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  })
+
+  input.value = ''
+}
+
 // todo: デバイス名も渡す
 async function onPairingRequested(deviceName: string, pin: string) {
   return await new Promise<boolean>((respond) => {
@@ -62,9 +84,16 @@ function onBluetoothDeviceFound(device: BluetoothDevice) {
   devices.value.push(device)
 }
 
-onMounted(() => {
+async function load() {
+  for (const note of await window.electronApi.getAllNotes()) {
+    notes.value.push(note)
+  }
+}
+
+onMounted(async () => {
   window.electronApi.setOnPairingRequested(onPairingRequested)
   window.electronApi.setOnBluetoothDeviceFound(onBluetoothDeviceFound)
+  await load()
 })
 
 onUnmounted(() => {
@@ -80,7 +109,6 @@ onUnmounted(() => {
   </div>
   <div>
     <button type="button" @click="startBluetoothScan">検出</button>
-    <button type="button" @click="makeDiscoverable">待機</button>
   </div>
   <div v-if="pairingRequest.request.value != null">
     Device: {{ pairingRequest.request.value.deviceName }} <br />
@@ -95,6 +123,20 @@ onUnmounted(() => {
       {{ device.name }},{{ device.id }}
     </li>
   </ul>
+  <p>メモ</p>
+  <ul>
+    <li v-for="note in notes">
+      {{ note.id }},{{ note.content }},{{ note.editor }},{{ note.createdAt
+      }}{{ note.updatedAt }}
+    </li>
+  </ul>
+  <div>
+    <input type="text" placeholder="ここにメモを入力" v-model="input" />
+    <button type="button" @click="create">追加</button>
+  </div>
+  <div>
+    <button type="button" @click="load">更新分取得</button>
+  </div>
 </template>
 
 <style scoped></style>
