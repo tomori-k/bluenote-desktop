@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useBluetoothScanState } from './composables/BluetoothScanState'
+import MainLayout from './components/MainLayout.vue'
 
 const bluetoothScanState = useBluetoothScanState()
 
@@ -110,7 +111,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="bluetoothScanState.isScanning.value">デバイスを検出中...</div>
+  <div class="app-layout">
+    <input type="text" placeholder="検索..." class="search-input" />
+    <MainLayout class="main" />
+  </div>
+  <!-- <div v-if="bluetoothScanState.isScanning.value">デバイスを検出中...</div>
   <div>
     <button type="button" @click="startBluetoothScan">検出</button>
   </div>
@@ -142,7 +147,21 @@ onUnmounted(() => {
   <div>
     <div v-if="isSyncing">同期中...</div>
     <button type="button" @click="sync">同期</button>
-  </div>
+  </div> -->
 </template>
 
-<style scoped></style>
+<style scoped>
+.app-layout {
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.search-input {
+  grid-row: 1/2;
+}
+
+.main {
+  grid-row: 2/3;
+}
+</style>
