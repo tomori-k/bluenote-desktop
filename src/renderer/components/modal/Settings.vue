@@ -36,8 +36,7 @@ const emit = defineEmits<Emits>()
 
 <style>
 .settings-layout {
-  background: #000000;
-  opacity: 70%;
+  background: #000000a1;
   position: absolute;
   left: 0;
   top: 0;
