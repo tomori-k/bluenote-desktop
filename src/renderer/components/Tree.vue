@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import Closable from './Closable.vue'
 import Editor from './Editor.vue'
 import NoteList from './monologue/NoteList.vue'
+
+const input = ref<string>()
 
 type Emits = {
   (e: 'close-clicked'): void
@@ -12,8 +15,8 @@ const emit = defineEmits<Emits>()
 <template>
   <Closable @close-clicked="() => emit('close-clicked')">
     <div class="tree-layout">
-      <NoteList class="note-list" />
-      <Editor class="editor" />
+      <NoteList class="note-list" :notes="[]" />
+      <Editor class="editor" v-model="input" />
     </div>
   </Closable>
 </template>
