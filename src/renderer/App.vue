@@ -2,6 +2,10 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useBluetoothScanState } from './composables/BluetoothScanState'
 import MainLayout from './components/MainLayout.vue'
+import Settings from './components/modal/Settings.vue'
+
+const showSettings = ref(false)
+const showMenu = ref(false)
 
 const bluetoothScanState = useBluetoothScanState()
 
@@ -112,8 +116,21 @@ onUnmounted(() => {
 
 <template>
   <div class="app-layout">
-    <input type="text" placeholder="検索..." class="search-input" />
-    <MainLayout class="main" />
+    <div class="titlebar">
+      <button type="button" @click="() => (showMenu = !showMenu)">
+        メニュー
+      </button>
+      <input type="text" placeholder="検索..." class="search-input" />
+    </div>
+    <MainLayout
+      class="main"
+      :show-menu="showMenu"
+      @settings-clicked="() => (showSettings = true)"
+    />
+    <Settings
+      v-show="showSettings"
+      @close-clicked="() => (showSettings = false)"
+    />
   </div>
   <!-- <div v-if="bluetoothScanState.isScanning.value">デバイスを検出中...</div>
   <div>
@@ -157,7 +174,7 @@ onUnmounted(() => {
   grid-template-rows: auto 1fr;
 }
 
-.search-input {
+.title-bar {
   grid-row: 1/2;
 }
 

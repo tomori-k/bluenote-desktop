@@ -1,8 +1,16 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+type Emits = {
+  (e: 'close-clicked'): void
+}
+const emit = defineEmits<Emits>()
+</script>
 
 <template>
   <div class="closable-layout">
-    <div class="header">This is closable view.</div>
+    <div class="header">
+      This is closable view.
+      <button type="button" @click="() => emit('close-clicked')">閉じる</button>
+    </div>
     <slot class="content" />
   </div>
 </template>
