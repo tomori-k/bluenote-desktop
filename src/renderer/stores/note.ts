@@ -16,5 +16,12 @@ export const useNoteStore = defineStore('notes', {
       const created = await window.electronApi.create({ content: content })
       this.notes.push(created)
     },
+    async sync() {
+      const updates = await window.electronApi.sync()
+
+      for (const note of updates) {
+        this.notes.push(note)
+      }
+    },
   },
 })

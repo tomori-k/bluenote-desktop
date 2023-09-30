@@ -4,6 +4,7 @@ import Thread from './Thread.vue'
 import Tree from './Tree.vue'
 import SearchResult from './SearchResult.vue'
 import { ref } from 'vue'
+import Trash from './Trash.vue'
 
 type Props = {
   showMenu: boolean
@@ -17,6 +18,7 @@ const emit = defineEmits<Emits>()
 
 const showTree = ref(true)
 const showSearchResult = ref(true)
+const showTrash = ref(true)
 </script>
 
 <template>
@@ -24,6 +26,7 @@ const showSearchResult = ref(true)
     <SideMenu
       class="sidemenu"
       @settings-clicked="() => emit('settings-clicked')"
+      @trash-clicked="() => (showTrash = !showTrash)"
       v-show="props.showMenu"
     />
     <Thread class="thread" />
@@ -37,13 +40,19 @@ const showSearchResult = ref(true)
       v-show="showSearchResult"
       @close-clicked="() => (showSearchResult = false)"
     />
+    <Trash
+      class="trash"
+      v-show="showTrash"
+      @close-clicked="() => (showTrash = false)"
+    />
   </div>
 </template>
 
 <style scoped>
 .main-layout {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto auto;
+  grid-template-rows: minmax(0, 1fr); /* これ罠やなー */
 }
 
 .sidemenu {
@@ -60,5 +69,9 @@ const showSearchResult = ref(true)
 
 .search-result {
   grid-column: 4/5;
+}
+
+.trash {
+  grid-column: 5/6;
 }
 </style>

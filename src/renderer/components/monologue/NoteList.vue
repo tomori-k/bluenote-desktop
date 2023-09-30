@@ -16,11 +16,21 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 </script>
 <template>
-  <ul>
-    <li v-for="note in props.notes">
+  <div class="note-list-root">
+    <div v-for="note in props.notes" class="note">
       {{ note.id }},{{ note.content }},{{ note.editorId }},{{
         note.createdAt
       }},{{ note.updatedAt }}
-    </li>
-  </ul>
+    </div>
+  </div>
 </template>
+
+<style scoped>
+.note-list-root {
+  overflow-y: auto;
+}
+
+.note {
+  word-break: break-all;
+}
+</style>

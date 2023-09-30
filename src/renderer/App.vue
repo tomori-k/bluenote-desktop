@@ -56,15 +56,6 @@ type Note = {
 const input = ref<string>()
 const notes = ref<Note[]>([])
 
-async function create() {
-  if (!input.value) return
-
-  const posted = await window.electronApi.create({ content: input.value })
-
-  notes.value.push(posted)
-  input.value = ''
-}
-
 // todo: デバイス名も渡す
 async function onPairingRequested(deviceName: string, pin: string) {
   return await new Promise<boolean>((respond) => {
@@ -81,31 +72,9 @@ function onBluetoothDeviceFound(device: BluetoothDevice) {
   devices.value.push(device)
 }
 
-async function load() {
-  for (const note of await window.electronApi.getAllNotes()) {
-    notes.value.push(note)
-  }
-}
-
-const isSyncing = ref(false)
-
-async function sync() {
-  isSyncing.value = true
-  try {
-    const updates = await window.electronApi.sync()
-
-    for (const note of updates) {
-      notes.value.push(note)
-    }
-  } finally {
-    isSyncing.value = false
-  }
-}
-
 onMounted(async () => {
   window.electronApi.setOnPairingRequested(onPairingRequested)
   window.electronApi.setOnBluetoothDeviceFound(onBluetoothDeviceFound)
-  await load()
 })
 
 onUnmounted(() => {
@@ -171,7 +140,7 @@ onUnmounted(() => {
 .app-layout {
   height: 100vh;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .title-bar {
