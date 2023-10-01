@@ -203,14 +203,15 @@ const createWindow = async () => {
     })
   })
 
-  ipcMain.handle(IpcChannel.CreateNote, async (_, threadId, content) => {
+  ipcMain.handle(IpcChannel.CreateNote, async (_, note) => {
     const id = randomUUID()
     const created = await prisma.note.create({
       data: {
         id: id,
-        content: content,
+        content: note.content,
         editorId: myDeviceId,
-        threadId: threadId,
+        threadId: note.threadId,
+        parentId: note.parentId,
         removed: false,
         removedAt: new Date(0),
       },

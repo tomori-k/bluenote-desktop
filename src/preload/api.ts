@@ -25,7 +25,8 @@ type Note = {
   removed: boolean
   removedAt: Date
 }
-type NoteCreate = Pick<Note, 'content'>
+type NoteCreate = Pick<Note, 'content' | 'threadId'> &
+  Partial<Pick<Note, 'parentId'>>
 type NoteUpdate = Pick<Note, 'content' | 'removed' | 'removedAt'>
 
 export const api = {
@@ -51,12 +52,8 @@ export const api = {
   async getTree(noteId: string): Promise<Note[]> {
     return await ipcRenderer.invoke(IpcChannel.GetTree, noteId)
   },
-  async createNote(threadId: string, note: NoteCreate): Promise<Note> {
-    return await ipcRenderer.invoke(
-      IpcChannel.CreateNote,
-      threadId,
-      note.content
-    )
+  async createNote(note: NoteCreate): Promise<Note> {
+    return await ipcRenderer.invoke(IpcChannel.CreateNote, note)
   },
   async updateNote(note: NoteUpdate): Promise<Note> {
     return await ipcRenderer.invoke(IpcChannel.UpdateNote, note)

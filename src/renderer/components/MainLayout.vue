@@ -20,6 +20,17 @@ type Thread = {
   removed: boolean
   removedAt: Date
 }
+type Note = {
+  id: string
+  content: string
+  editorId: string
+  createdAt: Date
+  updatedAt: Date
+  threadId: string
+  parentId: string | null
+  removed: boolean
+  removedAt: Date
+}
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
@@ -29,6 +40,7 @@ const showSearchResult = ref(true)
 const showTrash = ref(true)
 
 const thread = ref<Thread>()
+const note = ref<Note>() // ツリー
 </script>
 
 <template>
@@ -40,11 +52,21 @@ const thread = ref<Thread>()
       @thread-clicked="(th) => (thread = th)"
       v-show="props.showMenu"
     />
-    <Thread class="thread" :thread="thread" />
+    <Thread
+      class="thread"
+      :thread="thread"
+      @note-clicked="
+        (n) => {
+          note = n
+          showTree = true
+        }
+      "
+    />
     <Tree
       class="tree"
       v-show="showTree"
       @close-clicked="() => (showTree = false)"
+      :note="note"
     />
     <SearchResult
       class="search-result"

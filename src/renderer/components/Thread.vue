@@ -26,8 +26,12 @@ type Note = {
 type Props = {
   thread: Thread | undefined
 }
+type Emits = {
+  (e: 'note-clicked', note: Note): void
+}
 
 const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
 
 const input = ref<string>()
 const notes = ref<Note[]>([])
@@ -49,7 +53,8 @@ async function create() {
   if (!input.value) return
 
   try {
-    const note = await window.api.createNote(props.thread.id, {
+    const note = await window.api.createNote({
+      threadId: props.thread.id,
       content: input.value,
     })
     notes.value.push(note)
@@ -83,7 +88,11 @@ watch(
     <!-- <button type="button" @click="sync">同期</button> -->
     <!-- <div v-if="isSyncing">同期中</div> -->
     <div v-if="props.thread != null">スレッド: {{ props.thread.name }}</div>
-    <NoteList class="note-list" :notes="notes" />
+    <NoteList
+      class="note-list"
+      :notes="notes"
+      @note-clicked="(note) => emit('note-clicked', note)"
+    />
     <Editor class="editor" @create-clicked="create" v-model="input" />
   </div>
 </template>
