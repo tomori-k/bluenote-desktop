@@ -18,6 +18,7 @@ export enum IpcChannel {
   GetAllNotes = 'get-all-notes',
   GetNotes = 'get-notes',
   GetTree = 'get-Tree',
+  SearchNote = 'search-note',
   CreateNote = 'create-note',
   UpdateNote = 'update-note',
   DeleteNote = 'delete-note',

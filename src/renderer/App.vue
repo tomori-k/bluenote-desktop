@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useBluetoothScanState } from './composables/BluetoothScanState'
 import MainLayout from './components/MainLayout.vue'
 import Settings from './components/modal/Settings.vue'
@@ -55,6 +55,10 @@ type Note = {
 
 const input = ref<string>()
 const notes = ref<Note[]>([])
+const searchText = ref<string>()
+const searchOption = computed(() => ({
+  text: searchText.value ?? '',
+}))
 
 // todo: デバイス名も渡す
 async function onPairingRequested(deviceName: string, pin: string) {
@@ -97,12 +101,18 @@ onUnmounted(() => {
       >
         メニュー
       </button>
-      <input type="text" placeholder="検索..." class="search-input" />
+      <input
+        type="text"
+        placeholder="検索..."
+        class="search-input"
+        v-model="searchText"
+      />
     </div>
     <MainLayout
       class="main"
       :show-menu="showMenu"
       @settings-clicked="() => (showSettings = true)"
+      :search-option="searchOption"
     />
     <Settings
       v-show="showSettings"

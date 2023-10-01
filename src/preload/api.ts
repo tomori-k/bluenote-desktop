@@ -27,6 +27,9 @@ export const api = {
   async getNotes(threadId: string): Promise<Note[]> {
     return await ipcRenderer.invoke(IpcChannel.GetNotes, threadId)
   },
+  async searchNote(searchOption: { text: string }): Promise<Note[]> {
+    return await ipcRenderer.invoke(IpcChannel.SearchNote, searchOption)
+  },
   async getTree(noteId: string): Promise<Note[]> {
     return await ipcRenderer.invoke(IpcChannel.GetTree, noteId)
   },

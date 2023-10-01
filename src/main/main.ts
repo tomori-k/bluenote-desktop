@@ -203,6 +203,23 @@ const createWindow = async () => {
     })
   })
 
+  ipcMain.handle(IpcChannel.SearchNote, async (_, searchOption) => {
+    return await prisma.note.findMany({
+      where: {
+        ...(searchOption.text != null
+          ? {
+              content: {
+                contains: searchOption.text,
+              },
+            }
+          : {}),
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
+  })
+
   ipcMain.handle(IpcChannel.CreateNote, async (_, note) => {
     const id = randomUUID()
     const created = await prisma.note.create({

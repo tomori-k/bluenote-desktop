@@ -3,13 +3,16 @@ import SideMenu from './SideMenu.vue'
 import ThreadView from './ThreadView.vue'
 import Tree from './Tree.vue'
 import SearchResult from './SearchResult.vue'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import Trash from './Trash.vue'
 import { Thread } from '../../common/thread'
 import { Note } from '../../common/note'
 
 type Props = {
   showMenu: boolean
+  searchOption: {
+    text: string
+  }
 }
 type Emits = {
   (e: 'settings-clicked'): void
@@ -24,6 +27,15 @@ const showTrash = ref(true)
 
 const thread = ref<Thread>()
 const note = ref<Note>() // ツリー
+
+watch(
+  () => props.searchOption,
+  () => {
+    if (!showSearchResult.value && (props.searchOption.text?.length ?? 0 > 0)) {
+      showSearchResult.value = true
+    }
+  }
+)
 </script>
 
 <template>
@@ -55,6 +67,7 @@ const note = ref<Note>() // ツリー
       class="search-result"
       v-show="showSearchResult"
       @close-clicked="() => (showSearchResult = false)"
+      :search-option="searchOption"
     />
     <Trash
       class="trash"
