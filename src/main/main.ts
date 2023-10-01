@@ -37,6 +37,7 @@ const createWindow = async () => {
           id: randomUUID(),
           name: '',
           me: true,
+          syncedAt: new Date(0),
         },
       })
     }
@@ -61,31 +62,33 @@ const createWindow = async () => {
     console.log(`Update requested from: ${uuid}`)
 
     // 最終同期時刻、現在時刻を取得
-    const syncState = (await prisma.syncState.findFirst({
+    const device = (await prisma.device.findFirst({
       where: {
-        deviceId: uuid,
+        id: uuid,
       },
-    })) ?? { deviceId: uuid, syncedAt: BigInt(0) }
-    const timestamp = Date.now()
+    })) ?? { id: uuid, syncedAt: new Date(0) }
+    const timestamp = new Date()
 
     // 更新分を取得
     const updates = await prisma.note.findMany({
       where: {
         editorId: myDeviceId,
         updatedAt: {
-          gte: syncState.syncedAt,
+          gte: device.syncedAt,
           lt: timestamp,
         },
       },
     })
 
     // 最終同期時刻を更新
-    await prisma.syncState.upsert({
+    await prisma.device.upsert({
       where: {
-        deviceId: syncState.deviceId,
+        id: device.id,
       },
       create: {
-        deviceId: syncState.deviceId,
+        id: device.id,
+        name: '',
+        me: false,
         syncedAt: timestamp,
       },
       update: {
@@ -93,12 +96,7 @@ const createWindow = async () => {
       },
     })
 
-    // bigint が素直に stringify できないときの hack
-    // todo: データベースのほうを素直に DateTime 型にする
-    const replacer = (_: string, value: any) =>
-      typeof value === 'bigint' ? Number(value) : value
-
-    const json = JSON.stringify(updates, replacer)
+    const json = JSON.stringify(updates)
 
     console.log(json)
 
@@ -125,6 +123,56 @@ const createWindow = async () => {
     await pair(deviceId)
   })
 
+  // DBアクセス
+
+  ipcMain.handle(IpcChannel.GetAllThreads, async (_) => {
+    return await prisma.thread.findMany({
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
+  })
+
+  ipcMain.handle(IpcChannel.CreateThread, async (_, name, displayMode) => {
+    if (displayMode !== 'monologue' && displayMode !== 'scrap') {
+      throw new Error('display mode must be monologue or scrap')
+    }
+    return await prisma.thread.create({
+      data: {
+        id: randomUUID(),
+        name: name,
+        displayMode: displayMode,
+        removed: false,
+        removedAt: new Date(0),
+      },
+    })
+  })
+
+  ipcMain.handle(IpcChannel.UpdateThread, async (_, thread) => {
+    const update = {
+      ...(thread.name != null ? { name: thread.name } : {}),
+      ...(thread.displayMode != null
+        ? { displayMode: thread.displayMode }
+        : {}),
+      ...(thread.removed != null ? { removed: thread.removed } : {}),
+      ...(thread.removedAt != null ? { removedAt: thread.removedAt } : {}),
+    }
+    return await prisma.thread.update({
+      where: {
+        id: thread.id,
+      },
+      data: update,
+    })
+  })
+
+  ipcMain.handle(IpcChannel.DeleteThread, async (_, threadId) => {
+    await prisma.thread.delete({
+      where: {
+        id: threadId,
+      },
+    })
+  })
+
   ipcMain.handle(IpcChannel.GetAllNotes, async (_) => {
     const notes = await prisma.note.findMany({})
 
@@ -133,19 +181,63 @@ const createWindow = async () => {
     return notes
   })
 
-  ipcMain.handle(IpcChannel.Create, async (_, note) => {
-    const timestamp = Date.now()
+  ipcMain.handle(IpcChannel.GetNotes, async (_, threadId) => {
+    return await prisma.note.findMany({
+      where: {
+        threadId: threadId,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
+  })
+
+  ipcMain.handle(IpcChannel.GetTree, async (_, noteId) => {
+    return await prisma.note.findMany({
+      where: {
+        parentId: noteId,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
+  })
+
+  ipcMain.handle(IpcChannel.CreateNote, async (_, threadId, content) => {
     const id = randomUUID()
     const created = await prisma.note.create({
       data: {
         id: id,
-        content: note.content,
+        content: content,
         editorId: myDeviceId,
-        createdAt: timestamp,
-        updatedAt: timestamp,
+        threadId: threadId,
+        removed: false,
+        removedAt: new Date(0),
       },
     })
     return created
+  })
+
+  ipcMain.handle(IpcChannel.UpdateNote, async (_, note) => {
+    const update = {
+      ...(note.content != null ? { content: note.content } : {}),
+      ...(note.removed != null ? { removed: note.removed } : {}),
+      ...(note.removedAt != null ? { removedAt: note.removedAt } : {}),
+    }
+    return await prisma.note.update({
+      where: {
+        id: note.id,
+      },
+      data: update,
+    })
+  })
+
+  ipcMain.handle(IpcChannel.DeleteNote, async (_, noteId) => {
+    await prisma.note.delete({
+      where: {
+        id: noteId,
+      },
+    })
   })
 
   // todo: なんとかする
@@ -164,26 +256,26 @@ const createWindow = async () => {
   ipcMain.handle(IpcChannel.Sync, async (_) => {
     const updates = await wrappedSync()
     const updatesAdded = []
-    const editors = new Set(updates.map((x) => x.editor))
+    // const editors = new Set(updates.map((x) => x.editor))
 
     // 新規デバイスがあれば DB に追加
-    for (const editor of editors) {
-      const device = await prisma.device.findFirst({
-        where: {
-          id: editor,
-        },
-      })
+    // for (const editor of editors) {
+    //   const device = await prisma.device.findFirst({
+    //     where: {
+    //       id: editor,
+    //     },
+    //   })
 
-      if (device == null) {
-        await prisma.device.create({
-          data: {
-            id: editor,
-            name: randomUUID(), // 一旦適当
-            me: false,
-          },
-        })
-      }
-    }
+    //   if (device == null) {
+    //     await prisma.device.create({
+    //       data: {
+    //         id: editor,
+    //         name: randomUUID(), // 一旦適当
+    //         me: false,
+    //       },
+    //     })
+    //   }
+    // }
 
     for (const update of updates) {
       const added = await prisma.note.create({

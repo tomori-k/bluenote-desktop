@@ -86,7 +86,15 @@ onUnmounted(() => {
 <template>
   <div class="app-layout">
     <div class="titlebar">
-      <button type="button" @click="() => (showMenu = !showMenu)">
+      <button
+        type="button"
+        @click="
+          () => {
+            showMenu = !showMenu
+            console.log(showMenu)
+          }
+        "
+      >
         メニュー
       </button>
       <input type="text" placeholder="検索..." class="search-input" />

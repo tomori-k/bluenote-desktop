@@ -12,6 +12,14 @@ type Props = {
 type Emits = {
   (e: 'settings-clicked'): void
 }
+type Thread = {
+  id: string
+  name: string
+  displayMode: 'monologue' | 'scrap'
+  createdAt: Date
+  removed: boolean
+  removedAt: Date
+}
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
@@ -19,6 +27,8 @@ const emit = defineEmits<Emits>()
 const showTree = ref(true)
 const showSearchResult = ref(true)
 const showTrash = ref(true)
+
+const thread = ref<Thread>()
 </script>
 
 <template>
@@ -27,9 +37,10 @@ const showTrash = ref(true)
       class="sidemenu"
       @settings-clicked="() => emit('settings-clicked')"
       @trash-clicked="() => (showTrash = !showTrash)"
+      @thread-clicked="(th) => (thread = th)"
       v-show="props.showMenu"
     />
-    <Thread class="thread" />
+    <Thread class="thread" :thread="thread" />
     <Tree
       class="tree"
       v-show="showTree"

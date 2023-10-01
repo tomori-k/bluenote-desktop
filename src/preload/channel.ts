@@ -7,7 +7,18 @@ export enum IpcChannel {
   MakeDiscoverable = 'make-discoverable',
   RequestPairing = 'request-pairing',
   RespondToPairingRequest = 'respond-to-pairing-request',
-  GetAllNotes = 'get-all-notes',
   Create = 'create',
   Sync = 'sync',
+
+  GetAllThreads = 'get-all-threads',
+  CreateThread = 'create-thread',
+  UpdateThread = 'update-thread',
+  DeleteThread = 'delete-thread',
+
+  GetAllNotes = 'get-all-notes',
+  GetNotes = 'get-notes',
+  GetTree = 'get-Tree',
+  CreateNote = 'create-note',
+  UpdateNote = 'update-note',
+  DeleteNote = 'delete-note',
 }

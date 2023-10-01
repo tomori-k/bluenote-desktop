@@ -10,25 +10,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Device {
-  id        String      @id
-  name      String
-  me        Boolean
-  Note      Note[]
-  SyncState SyncState[]
+model Thread {
+  id          String   @id
+  name        String
+  displayMode String // "monologue" or "scrap"
+  createdAt   DateTime @default(now())
+  removed     Boolean
+  removedAt   DateTime
+  Note        Note[]
+}
+
+model DeletedThread {
+  id        String   @id
+  deletedAt DateTime
 }
 
 model Note {
-  id        String @id // バイト配列にしたいよね -> まあ文字列でもええか！
+  id        String   @id // バイト配列にしたいよね -> まあ文字列でもええか！
   content   String
-  editor    Device @relation(fields: [editorId], references: [id])
+  editor    Device   @relation(fields: [editorId], references: [id])
   editorId  String
-  createdAt BigInt
-  updatedAt BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  thread    Thread   @relation(fields: [threadId], references: [id])
+  threadId  String
+  parent    Note?    @relation("Tree", fields: [parentId], references: [id])
+  parentId  String?
+  notes     Note[]   @relation("Tree")
+  removed   Boolean
+  removedAt DateTime
 }
 
-model SyncState {
-  device   Device @relation(fields: [deviceId], references: [id])
-  deviceId String @id
-  syncedAt BigInt
+model DeletedNote {
+  id        String   @id
+  deletedAt DateTime
+}
+
+model Device {
+  id       String   @id
+  name     String
+  me       Boolean
+  syncedAt DateTime
+  Note     Note[]
 }
