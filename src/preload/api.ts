@@ -34,11 +34,7 @@ export const api = {
     return await ipcRenderer.invoke(IpcChannel.GetAllThreads)
   },
   async createThread(thread: ThreadCreate): Promise<Thread> {
-    return await ipcRenderer.invoke(
-      IpcChannel.CreateThread,
-      thread.name,
-      thread.displayMode
-    )
+    return await ipcRenderer.invoke(IpcChannel.CreateThread, thread)
   },
   async updateThread(thread: ThreadUpdate): Promise<Thread> {
     return await ipcRenderer.invoke(IpcChannel.UpdateThread, thread)

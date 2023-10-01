@@ -133,15 +133,15 @@ const createWindow = async () => {
     })
   })
 
-  ipcMain.handle(IpcChannel.CreateThread, async (_, name, displayMode) => {
-    if (displayMode !== 'monologue' && displayMode !== 'scrap') {
+  ipcMain.handle(IpcChannel.CreateThread, async (_, thread) => {
+    if (thread.displayMode !== 'monologue' && thread.displayMode !== 'scrap') {
       throw new Error('display mode must be monologue or scrap')
     }
     return await prisma.thread.create({
       data: {
         id: randomUUID(),
-        name: name,
-        displayMode: displayMode,
+        name: thread.name,
+        displayMode: thread.displayMode,
         removed: false,
         removedAt: new Date(0),
       },
