@@ -3,18 +3,8 @@ import { ref, watch } from 'vue'
 import Closable from './Closable.vue'
 import Editor from './Editor.vue'
 import NoteList from './monologue/NoteList.vue'
+import { Note } from '../../common/note'
 
-type Note = {
-  id: string
-  content: string
-  editorId: string
-  createdAt: Date
-  updatedAt: Date
-  threadId: string
-  parentId: string | null
-  removed: boolean
-  removedAt: Date
-}
 type Props = {
   note: Note | undefined
 }

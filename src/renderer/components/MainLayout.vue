@@ -1,35 +1,18 @@
 <script setup lang="ts">
 import SideMenu from './SideMenu.vue'
-import Thread from './Thread.vue'
+import ThreadView from './ThreadView.vue'
 import Tree from './Tree.vue'
 import SearchResult from './SearchResult.vue'
 import { ref } from 'vue'
 import Trash from './Trash.vue'
+import { Thread } from '../../common/thread'
+import { Note } from '../../common/note'
 
 type Props = {
   showMenu: boolean
 }
 type Emits = {
   (e: 'settings-clicked'): void
-}
-type Thread = {
-  id: string
-  name: string
-  displayMode: 'monologue' | 'scrap'
-  createdAt: Date
-  removed: boolean
-  removedAt: Date
-}
-type Note = {
-  id: string
-  content: string
-  editorId: string
-  createdAt: Date
-  updatedAt: Date
-  threadId: string
-  parentId: string | null
-  removed: boolean
-  removedAt: Date
 }
 
 const props = defineProps<Props>()
@@ -52,7 +35,7 @@ const note = ref<Note>() // ツリー
       @thread-clicked="(th) => (thread = th)"
       v-show="props.showMenu"
     />
-    <Thread
+    <ThreadView
       class="thread"
       :thread="thread"
       @note-clicked="

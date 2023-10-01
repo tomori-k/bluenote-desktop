@@ -3,26 +3,9 @@ import NoteList from './monologue/NoteList.vue'
 import Editor from './Editor.vue'
 // import { useNoteStore } from '../stores/note'
 import { ref, watch } from 'vue'
+import { Thread } from '../../common/thread'
+import { Note } from '../../common/note'
 
-type Thread = {
-  id: string
-  name: string
-  displayMode: 'monologue' | 'scrap'
-  createdAt: Date
-  removed: boolean
-  removedAt: Date
-}
-type Note = {
-  id: string
-  content: string
-  editorId: string
-  createdAt: Date
-  updatedAt: Date
-  threadId: string
-  parentId: string | null
-  removed: boolean
-  removedAt: Date
-}
 type Props = {
   thread: Thread | undefined
 }

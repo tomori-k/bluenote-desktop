@@ -1,30 +1,12 @@
 import { ipcRenderer } from 'electron'
 import { IpcChannel } from './channel'
+import { Thread } from '../common/thread'
+import { Note } from '../common/note'
 
-type Thread = {
-  id: string
-  name: string
-  displayMode: 'monologue' | 'scrap'
-  createdAt: Date
-  removed: boolean
-  removedAt: Date
-}
 type ThreadCreate = Pick<Thread, 'name' | 'displayMode'>
 type ThreadUpdate = Partial<
   Pick<Thread, 'name' | 'displayMode' | 'removed' | 'removedAt'>
 >
-
-type Note = {
-  id: string
-  content: string
-  editorId: string
-  createdAt: Date
-  updatedAt: Date
-  threadId: string
-  parentId: string | null
-  removed: boolean
-  removedAt: Date
-}
 type NoteCreate = Pick<Note, 'content' | 'threadId'> &
   Partial<Pick<Note, 'parentId'>>
 type NoteUpdate = Pick<Note, 'content' | 'removed' | 'removedAt'>

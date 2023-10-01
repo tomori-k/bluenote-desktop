@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { useThreadStore } from '../stores/thread'
-type Thread = {
-  id: string
-  name: string
-  displayMode: 'monologue' | 'scrap'
-  createdAt: Date
-  removed: boolean
-  removedAt: Date
-}
+import { Thread } from '../../common/thread'
+
 type Emits = {
   (e: 'settings-clicked'): void
   (e: 'trash-clicked'): void
