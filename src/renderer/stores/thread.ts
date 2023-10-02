@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
+import { Thread } from '../../common/thread'
 
 export const useThreadStore = defineStore('threads', {
   state() {
     return {
       loaded: false,
-      threads: [] as any[],
+      threads: new Array<Thread>(),
     }
   },
   actions: {
@@ -21,6 +22,16 @@ export const useThreadStore = defineStore('threads', {
         displayMode: displayMode,
       })
       this.threads.push(created)
+    },
+    async rename(threadId: string, name: string) {
+      const idx = this.threads.findIndex((x) => x.id === threadId)
+      if (idx === -1) throw new Error('thread does not exist')
+
+      const updated = await window.api.updateThread({
+        id: threadId,
+        name: name,
+      })
+      this.threads[idx] = updated
     },
   },
 })

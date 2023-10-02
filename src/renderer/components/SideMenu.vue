@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useThreadStore } from '../stores/thread'
 import { Thread } from '../../common/thread'
+import { computed, ref } from 'vue'
 
 type Emits = {
   (e: 'settings-clicked'): void
@@ -10,9 +11,25 @@ type Emits = {
 const emit = defineEmits<Emits>()
 
 const threadStore = useThreadStore()
-
+const threads = computed(() =>
+  threadStore.threads.map((thread) => ({
+    renaming: false,
+    ...thread,
+    inputRef: ref<HTMLInputElement>(),
+  }))
+)
 async function createThread() {
   await threadStore.create('new thread', 'monologue')
+}
+
+async function applyRename(
+  thread: typeof threads.value extends (infer U)[] ? U : never
+) {
+  try {
+    await threadStore.rename(thread.id, thread.name)
+  } finally {
+    thread.renaming = false
+  }
 }
 
 threadStore.load()
@@ -25,10 +42,34 @@ threadStore.load()
     </div>
     <ul>
       <li
-        v-for="thread in threadStore.threads"
+        v-for="thread in threads"
         @click="() => emit('thread-clicked', thread)"
       >
-        {{ thread.name }}, {{ thread.displayMode }}
+        <span v-if="!thread.renaming">{{ thread.name }}</span>
+
+        <input
+          type="text"
+          v-model="thread.name"
+          v-if="thread.renaming"
+          :ref="(e) => (e as HTMLInputElement | null)?.focus()"
+          @keypress="
+            async (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                ;(e.target as HTMLLIElement).blur()
+              }
+            }
+          "
+          @blur="
+            async () => {
+              if (thread.renaming) {
+                await applyRename(thread)
+              }
+            }
+          "
+        />
+
+        <button type="button" @click="() => (thread.renaming = true)">a</button>
       </li>
     </ul>
     <ul>
@@ -37,3 +78,5 @@ threadStore.load()
     </ul>
   </div>
 </template>
+
+<style scoped></style>

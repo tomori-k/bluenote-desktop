@@ -5,7 +5,7 @@ import { Note } from '../common/note'
 
 type ThreadCreate = Pick<Thread, 'name' | 'displayMode'>
 type ThreadUpdate = Partial<
-  Pick<Thread, 'name' | 'displayMode' | 'removed' | 'removedAt'>
+  Pick<Thread, 'id' | 'name' | 'displayMode' | 'removed' | 'removedAt'>
 >
 type NoteCreate = Pick<Note, 'content' | 'threadId'> &
   Partial<Pick<Note, 'parentId'>>
