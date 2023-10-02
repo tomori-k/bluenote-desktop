@@ -21,9 +21,9 @@ type Emits = {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const showTree = ref(true)
-const showSearchResult = ref(true)
-const showTrash = ref(true)
+const showTree = ref(false)
+const showSearchResult = ref(false)
+const showTrash = ref(false)
 
 const thread = ref<Thread>()
 const note = ref<Note>() // ツリー
