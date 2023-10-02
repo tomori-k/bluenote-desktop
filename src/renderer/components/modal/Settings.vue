@@ -34,7 +34,7 @@ const emit = defineEmits<Emits>()
   </div>
 </template>
 
-<style>
+<style scoped>
 .settings-layout {
   background: #000000a1;
   position: absolute;
