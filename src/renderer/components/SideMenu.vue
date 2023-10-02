@@ -67,6 +67,7 @@ threadStore.load()
     </div>
     <ul>
       <li
+        class="thread-li"
         v-for="thread in threads"
         @click="() => emit('thread-clicked', thread)"
       >
@@ -148,11 +149,15 @@ threadStore.load()
         >
           Remove
         </li>
-        <li>Monologue</li>
-        <li>Scrap</li>
       </ul>
     </ContextMenu>
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.thread-li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+</style>
