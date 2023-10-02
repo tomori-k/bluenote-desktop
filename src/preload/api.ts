@@ -9,7 +9,8 @@ type ThreadUpdate = Partial<Pick<Thread, 'name' | 'displayMode'>> &
 type NoteCreate = Pick<Note, 'content' | 'threadId'> &
   Partial<Pick<Note, 'parentId'>>
 type NoteUpdate = Pick<Note, 'content' | 'removed' | 'removedAt'>
-type FindOptionNote = Partial<Pick<Note, 'threadId' | 'parentId' | 'removed'>>
+type FindOptionNote = Partial<Pick<Note, 'threadId' | 'removed'>> &
+  Pick<Partial<{ [K in keyof Note]: Note[K] | null }>, 'parentId'>
 
 export const api = {
   async getAllThreads(): Promise<Thread[]> {

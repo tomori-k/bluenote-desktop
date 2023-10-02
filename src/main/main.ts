@@ -213,7 +213,7 @@ const createWindow = async () => {
     const threadId =
       options.threadId != null ? { threadId: options.threadId } : {}
     const parentId =
-      options.parentId != null ? { parentId: options.parentId } : {}
+      options.parentId !== void 0 ? { parentId: options.parentId } : {}
     const removed = options.removed != null ? { removed: options.removed } : {}
 
     return await prisma.note.findMany({
