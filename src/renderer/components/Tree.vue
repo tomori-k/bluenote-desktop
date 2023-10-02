@@ -21,7 +21,10 @@ async function load() {
 
   notes.value.length = 0
 
-  for (const note of await window.api.getTree(props.note.id)) {
+  for (const note of await window.api.getNotes({
+    parentId: props.note.id,
+    removed: false,
+  })) {
     notes.value.push(note)
   }
 }

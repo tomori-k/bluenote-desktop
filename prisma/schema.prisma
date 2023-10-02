@@ -17,7 +17,7 @@ model Thread {
   createdAt   DateTime @default(now())
   removed     Boolean
   removedAt   DateTime
-  Note        Note[]
+  notes       Note[]
 }
 
 model DeletedThread {

@@ -45,6 +45,10 @@ async function createThread() {
   await threadStore.create('new thread', 'monologue')
 }
 
+async function removeThread(thread: Thread) {
+  await threadStore.remove(thread.id)
+}
+
 async function applyRename(thread: Element<typeof threads.value>) {
   try {
     await threadStore.rename(thread.id, thread.name)
@@ -134,7 +138,16 @@ threadStore.load()
         >
           Rename
         </li>
-        <li>Remove</li>
+        <li
+          @click="
+            async () => {
+              await removeThread(contextMenuState.thread.value!)
+              contextMenuState.close()
+            }
+          "
+        >
+          Remove
+        </li>
         <li>Monologue</li>
         <li>Scrap</li>
       </ul>

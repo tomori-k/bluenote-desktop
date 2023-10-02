@@ -33,5 +33,13 @@ export const useThreadStore = defineStore('threads', {
       })
       this.threads[idx] = updated
     },
+    async remove(threadId: string) {
+      const idx = this.threads.findIndex((x) => x.id === threadId)
+      if (idx === -1) throw new Error('thread does not exist')
+
+      await window.api.removeThread(threadId)
+
+      this.threads.splice(idx, 1)
+    },
   },
 })

@@ -13,6 +13,7 @@ export enum IpcChannel {
   GetAllThreads = 'get-all-threads',
   CreateThread = 'create-thread',
   UpdateThread = 'update-thread',
+  RemoveThread = 'remove-thread',
   DeleteThread = 'delete-thread',
 
   GetAllNotes = 'get-all-notes',

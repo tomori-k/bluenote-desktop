@@ -26,7 +26,10 @@ async function load() {
 
   notes.value.length = 0
 
-  for (const note of await window.api.getNotes(props.thread.id)) {
+  for (const note of await window.api.getNotes({
+    threadId: props.thread.id,
+    removed: false,
+  })) {
     notes.value.push(note)
   }
 }

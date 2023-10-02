@@ -127,6 +127,9 @@ const createWindow = async () => {
 
   ipcMain.handle(IpcChannel.GetAllThreads, async (_) => {
     return await prisma.thread.findMany({
+      where: {
+        removed: false,
+      },
       orderBy: {
         createdAt: 'asc',
       },
@@ -165,6 +168,31 @@ const createWindow = async () => {
     })
   })
 
+  ipcMain.handle(IpcChannel.RemoveThread, async (_, threadId) => {
+    const timestamp = new Date()
+
+    await prisma.thread.update({
+      where: {
+        id: threadId,
+      },
+      data: {
+        removed: true,
+        removedAt: timestamp,
+        notes: {
+          updateMany: {
+            where: {
+              threadId: threadId,
+            },
+            data: {
+              removed: true,
+              removedAt: timestamp,
+            },
+          },
+        },
+      },
+    })
+  })
+
   ipcMain.handle(IpcChannel.DeleteThread, async (_, threadId) => {
     await prisma.thread.delete({
       where: {
@@ -181,21 +209,18 @@ const createWindow = async () => {
     return notes
   })
 
-  ipcMain.handle(IpcChannel.GetNotes, async (_, threadId) => {
-    return await prisma.note.findMany({
-      where: {
-        threadId: threadId,
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    })
-  })
+  ipcMain.handle(IpcChannel.GetNotes, async (_, options) => {
+    const threadId =
+      options.threadId != null ? { threadId: options.threadId } : {}
+    const parentId =
+      options.parentId != null ? { parentId: options.parentId } : {}
+    const removed = options.removed != null ? { removed: options.removed } : {}
 
-  ipcMain.handle(IpcChannel.GetTree, async (_, noteId) => {
     return await prisma.note.findMany({
       where: {
-        parentId: noteId,
+        ...threadId,
+        ...parentId,
+        ...removed,
       },
       orderBy: {
         createdAt: 'asc',
@@ -213,6 +238,7 @@ const createWindow = async () => {
               },
             }
           : {}),
+        removed: false,
       },
       orderBy: {
         createdAt: 'asc',
