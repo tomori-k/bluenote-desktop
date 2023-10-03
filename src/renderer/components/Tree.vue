@@ -94,6 +94,7 @@ watch(
         class="note-list"
         :notes="notes"
         :can-expand-tree="false"
+        :preview-note="input"
         @edit-clicked="
           (note) => {
             editing = note

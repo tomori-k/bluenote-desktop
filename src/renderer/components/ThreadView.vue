@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import NoteListView from './monologue/NoteListView.vue'
 import Editor from './Editor.vue'
-// import { useNoteStore } from '../stores/note'
 import { ref, watch } from 'vue'
 import { Thread } from '../../common/thread'
 import { Note } from '../../common/note'
@@ -111,6 +110,7 @@ watch(
       class="note-list"
       :notes="notes"
       :can-expand-tree="true"
+      :preview-note="input"
       @tree-clicked="(note) => emit('tree-clicked', note)"
       @edit-clicked="
         (note) => {

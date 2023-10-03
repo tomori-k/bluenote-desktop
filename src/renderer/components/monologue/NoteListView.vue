@@ -16,6 +16,7 @@ type Note = {
 type Props = {
   notes: Note[]
   canExpandTree: boolean
+  previewNote?: string | null
 }
 type Emits = {
   (e: 'reach-top'): void
@@ -55,6 +56,12 @@ marked.use({
         @edit-clicked="emit('edit-clicked', note)"
         @remove-clicked="emit('remove-clicked', note)"
       />
+    </div>
+    <div class="note">
+      <div
+        v-if="props.previewNote"
+        v-html="marked.parse(props.previewNote)"
+      ></div>
     </div>
   </div>
 </template>
