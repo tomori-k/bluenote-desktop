@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import HoverMenu from './HoverMenu.vue'
-import { marked } from 'marked'
+import { Marked } from 'marked'
+import { markedHighlight } from 'marked-highlight'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github.css'
 
 type Note = {
   id: string
@@ -27,6 +30,16 @@ type Emits = {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+const marked = new Marked(
+  markedHighlight({
+    langPrefix: 'hljs language-',
+    highlight(code, lang) {
+      const language = hljs.getLanguage(lang) ? lang : 'plaintext'
+      return hljs.highlight(code, { language }).value
+    },
+  })
+)
+
 marked.use({
   breaks: true,
   renderer: {
@@ -48,7 +61,7 @@ marked.use({
 <template>
   <div class="note-list-root">
     <div v-for="note in props.notes" class="note">
-      <div v-html="marked.parse(note.content)"></div>
+      <div class="note-content" v-html="marked.parse(note.content)"></div>
       <HoverMenu
         class="hover-menu"
         :tree-button="canExpandTree"
@@ -59,6 +72,7 @@ marked.use({
     </div>
     <div class="note">
       <div
+        class="note-content"
         v-if="props.previewNote"
         v-html="marked.parse(props.previewNote)"
       ></div>
@@ -85,5 +99,9 @@ marked.use({
 
 .note:hover > .hover-menu {
   display: block;
+}
+
+.note-content >>> code {
+  font-family: Menlo, Consolas, 'DejaVu Sans Mono', monospace;
 }
 </style>
