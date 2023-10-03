@@ -73,11 +73,7 @@ async function remove(note: Note) {
 
   if (idx === -1) throw new Error('note does not exist')
 
-  await window.api.updateNote({
-    id: note.id,
-    removed: true,
-    removedAt: new Date(),
-  })
+  await window.api.removeNote(note.id)
 
   notes.value.splice(idx, 1)
 }

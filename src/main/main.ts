@@ -281,6 +281,31 @@ const createWindow = async () => {
     })
   })
 
+  ipcMain.handle(IpcChannel.RemoveNote, async (_, noteId) => {
+    const timestamp = new Date()
+
+    await prisma.note.update({
+      where: {
+        id: noteId,
+      },
+      data: {
+        removed: true,
+        removedAt: timestamp,
+        notes: {
+          updateMany: {
+            where: {
+              parentId: noteId,
+            },
+            data: {
+              removed: true,
+              removedAt: timestamp,
+            },
+          },
+        },
+      },
+    })
+  })
+
   ipcMain.handle(IpcChannel.DeleteNote, async (_, noteId) => {
     await prisma.note.delete({
       where: {

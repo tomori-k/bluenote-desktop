@@ -22,5 +22,6 @@ export enum IpcChannel {
   SearchNote = 'search-note',
   CreateNote = 'create-note',
   UpdateNote = 'update-note',
+  RemoveNote = 'remove-note',
   DeleteNote = 'delete-note',
 }

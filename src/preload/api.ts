@@ -8,8 +8,7 @@ type ThreadUpdate = Partial<Pick<Thread, 'name' | 'displayMode'>> &
   Pick<Thread, 'id'>
 type NoteCreate = Pick<Note, 'content' | 'threadId'> &
   Partial<Pick<Note, 'parentId'>>
-type NoteUpdate = Partial<Pick<Note, 'content' | 'removed' | 'removedAt'>> &
-  Pick<Note, 'id'>
+type NoteUpdate = Partial<Pick<Note, 'content'>> & Pick<Note, 'id'>
 type FindOptionNote = Partial<Pick<Note, 'threadId' | 'removed'>> &
   Pick<Partial<{ [K in keyof Note]: Note[K] | null }>, 'parentId'>
 
@@ -40,6 +39,9 @@ export const api = {
   },
   async updateNote(note: NoteUpdate): Promise<Note> {
     return await ipcRenderer.invoke(IpcChannel.UpdateNote, note)
+  },
+  async removeNote(noteId: string) {
+    await ipcRenderer.invoke(IpcChannel.RemoveNote, noteId)
   },
   async deleteNote(noteId: string) {
     await ipcRenderer.invoke(IpcChannel.DeleteNote, noteId)
