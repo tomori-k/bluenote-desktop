@@ -44,6 +44,6 @@ async function search() {
 
 <template>
   <Closable @close-clicked="() => emit('close-clicked')">
-    <NoteList :notes="notes" />
+    <NoteList :notes="notes" :can-expand-tree="false" />
   </Closable>
 </template>

@@ -11,6 +11,6 @@ const emit = defineEmits<Emits>()
 <template>
   <Closable @close-clicked="() => emit('close-clicked')">
     ごみばこ
-    <NoteList :notes="[]" />
+    <NoteList :notes="[]" :can-expand-tree="false" />
   </Closable>
 </template>

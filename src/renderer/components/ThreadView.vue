@@ -10,7 +10,7 @@ type Props = {
   thread: Thread | undefined
 }
 type Emits = {
-  (e: 'note-clicked', note: Note): void
+  (e: 'tree-clicked', note: Note): void
 }
 
 const props = defineProps<Props>()
@@ -78,7 +78,8 @@ watch(
     <NoteList
       class="note-list"
       :notes="notes"
-      @note-clicked="(note) => emit('note-clicked', note)"
+      @tree-clicked="(note) => emit('tree-clicked', note)"
+      :can-expand-tree="true"
     />
     <Editor class="editor" @create-clicked="create" v-model="input" />
   </div>

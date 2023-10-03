@@ -58,7 +58,7 @@ watch(
   <Closable @close-clicked="() => emit('close-clicked')">
     <div class="tree-layout">
       <div v-if="props.note != null">ツリー: {{ props.note.content }}</div>
-      <NoteList class="note-list" :notes="notes" />
+      <NoteList class="note-list" :notes="notes" :can-expand-tree="false" />
       <Editor class="editor" v-model="input" @create-clicked="create" />
     </div>
   </Closable>

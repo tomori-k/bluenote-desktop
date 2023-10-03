@@ -50,7 +50,7 @@ watch(
     <ThreadView
       class="thread"
       :thread="thread"
-      @note-clicked="
+      @tree-clicked="
         (n) => {
           note = n
           showTree = true
