@@ -17,6 +17,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const input = ref<string>()
+const editing = ref<Note | null>(null)
 const notes = ref<Note[]>([])
 // const isSyncing = ref(false)
 // const noteStore = useNoteStore()
@@ -35,20 +36,51 @@ async function load() {
   }
 }
 
-async function create() {
+async function createOrUpdate() {
   if (props.thread == null) return
   if (!input.value) return
 
-  try {
+  // create
+  if (editing.value == null) {
     const note = await window.api.createNote({
       threadId: props.thread.id,
       content: input.value,
     })
     notes.value.push(note)
-    input.value = ''
-  } catch (e) {
-    console.error(e)
   }
+  // update
+  else {
+    if (input.value !== editing.value.content) {
+      const target = editing.value
+      const idx = notes.value.findIndex((x) => x.id === target.id)
+
+      if (idx === -1) throw new Error('note does not exist')
+
+      const updated = await window.api.updateNote({
+        id: target.id,
+        content: input.value,
+      })
+
+      notes.value[idx] = updated
+    }
+    editing.value = null
+  }
+
+  input.value = ''
+}
+
+async function remove(note: Note) {
+  const idx = notes.value.findIndex((x) => x.id === note.id)
+
+  if (idx === -1) throw new Error('note does not exist')
+
+  await window.api.updateNote({
+    id: note.id,
+    removed: true,
+    removedAt: new Date(),
+  })
+
+  notes.value.splice(idx, 1)
 }
 
 watch(
@@ -78,10 +110,17 @@ watch(
     <NoteList
       class="note-list"
       :notes="notes"
-      @tree-clicked="(note) => emit('tree-clicked', note)"
       :can-expand-tree="true"
+      @tree-clicked="(note) => emit('tree-clicked', note)"
+      @edit-clicked="
+        (note) => {
+          editing = note
+          input = note.content
+        }
+      "
+      @remove-clicked="remove"
     />
-    <Editor class="editor" @create-clicked="create" v-model="input" />
+    <Editor class="editor" @create-clicked="createOrUpdate" v-model="input" />
   </div>
 </template>
 

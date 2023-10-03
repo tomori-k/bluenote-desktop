@@ -19,6 +19,8 @@ type Props = {
 type Emits = {
   (e: 'reach-top'): void
   (e: 'tree-clicked', note: Note): void
+  (e: 'edit-clicked', note: Note): void
+  (e: 'remove-clicked', note: Note): void
 }
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
@@ -33,6 +35,8 @@ const emit = defineEmits<Emits>()
         class="hover-menu"
         :tree-button="canExpandTree"
         @tree-clicked="emit('tree-clicked', note)"
+        @edit-clicked="emit('edit-clicked', note)"
+        @remove-clicked="emit('remove-clicked', note)"
       />
     </div>
   </div>

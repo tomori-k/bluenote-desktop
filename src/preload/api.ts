@@ -8,7 +8,8 @@ type ThreadUpdate = Partial<Pick<Thread, 'name' | 'displayMode'>> &
   Pick<Thread, 'id'>
 type NoteCreate = Pick<Note, 'content' | 'threadId'> &
   Partial<Pick<Note, 'parentId'>>
-type NoteUpdate = Pick<Note, 'content' | 'removed' | 'removedAt'>
+type NoteUpdate = Partial<Pick<Note, 'content' | 'removed' | 'removedAt'>> &
+  Pick<Note, 'id'>
 type FindOptionNote = Partial<Pick<Note, 'threadId' | 'removed'>> &
   Pick<Partial<{ [K in keyof Note]: Note[K] | null }>, 'parentId'>
 
