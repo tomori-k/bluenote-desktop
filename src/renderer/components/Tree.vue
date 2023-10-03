@@ -15,6 +15,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 const input = ref<string>()
 const notes = ref<Note[]>([])
+const editing = ref<Note | null>(null)
 
 async function load() {
   if (props.note == null) return
@@ -29,21 +30,52 @@ async function load() {
   }
 }
 
-async function create() {
+async function createOrUpdate() {
   if (props.note == null) return
   if (!input.value) return
 
-  try {
+  // create
+  if (editing.value == null) {
     const note = await window.api.createNote({
       content: input.value,
       threadId: props.note.threadId,
       parentId: props.note.id,
     })
     notes.value.push(note)
-    input.value = ''
-  } catch (e) {
-    console.error(e)
   }
+  // update
+  else {
+    if (input.value !== editing.value.content) {
+      const target = editing.value
+      const idx = notes.value.findIndex((x) => x.id === target.id)
+
+      if (idx === -1) throw new Error('note does not exist')
+
+      const updated = await window.api.updateNote({
+        id: target.id,
+        content: input.value,
+      })
+
+      notes.value[idx] = updated
+    }
+    editing.value = null
+  }
+
+  input.value = ''
+}
+
+async function remove(note: Note) {
+  const idx = notes.value.findIndex((x) => x.id === note.id)
+
+  if (idx === -1) throw new Error('note does not exist')
+
+  await window.api.updateNote({
+    id: note.id,
+    removed: true,
+    removedAt: new Date(),
+  })
+
+  notes.value.splice(idx, 1)
 }
 
 watch(
@@ -58,8 +90,19 @@ watch(
   <Closable @close-clicked="() => emit('close-clicked')">
     <div class="tree-layout">
       <div v-if="props.note != null">ツリー: {{ props.note.content }}</div>
-      <NoteListView class="note-list" :notes="notes" :can-expand-tree="false" />
-      <Editor class="editor" v-model="input" @create-clicked="create" />
+      <NoteListView
+        class="note-list"
+        :notes="notes"
+        :can-expand-tree="false"
+        @edit-clicked="
+          (note) => {
+            editing = note
+            input = note.content
+          }
+        "
+        @remove-clicked="remove"
+      />
+      <Editor class="editor" v-model="input" @create-clicked="createOrUpdate" />
     </div>
   </Closable>
 </template>
