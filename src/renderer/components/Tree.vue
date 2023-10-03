@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import Closable from './Closable.vue'
 import Editor from './Editor.vue'
-import NoteList from './monologue/NoteList.vue'
+import NoteListView from './monologue/NoteListView.vue'
 import { Note } from '../../common/note'
 
 type Props = {
@@ -58,7 +58,7 @@ watch(
   <Closable @close-clicked="() => emit('close-clicked')">
     <div class="tree-layout">
       <div v-if="props.note != null">ツリー: {{ props.note.content }}</div>
-      <NoteList class="note-list" :notes="notes" :can-expand-tree="false" />
+      <NoteListView class="note-list" :notes="notes" :can-expand-tree="false" />
       <Editor class="editor" v-model="input" @create-clicked="create" />
     </div>
   </Closable>

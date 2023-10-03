@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import Closable from './Closable.vue'
-import NoteList from './monologue/NoteList.vue'
 import { Note } from '../../common/note'
+import NoteListView from './monologue/NoteListView.vue'
 
 type Props = {
   searchOption: {
@@ -44,6 +44,6 @@ async function search() {
 
 <template>
   <Closable @close-clicked="() => emit('close-clicked')">
-    <NoteList :notes="notes" :can-expand-tree="false" />
+    <NoteListView :notes="notes" :can-expand-tree="false" />
   </Closable>
 </template>

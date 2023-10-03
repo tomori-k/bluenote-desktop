@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import NoteList from './monologue/NoteList.vue'
+import NoteListView from './monologue/NoteListView.vue'
 import Editor from './Editor.vue'
 // import { useNoteStore } from '../stores/note'
 import { ref, watch } from 'vue'
@@ -107,7 +107,7 @@ watch(
     <!-- <button type="button" @click="sync">同期</button> -->
     <!-- <div v-if="isSyncing">同期中</div> -->
     <div v-if="props.thread != null">スレッド: {{ props.thread.name }}</div>
-    <NoteList
+    <NoteListView
       class="note-list"
       :notes="notes"
       :can-expand-tree="true"
