@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
 type Props = {
   modelValue: string | undefined
 }
@@ -10,12 +8,11 @@ type Emits = {
 }
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
-const input = ref<string>()
 </script>
 
 <template>
   <div class="editor-layout">
-    <input
+    <textarea
       type="text"
       placeholder="メモを入力"
       class="note-input"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import HoverMenu from './HoverMenu.vue'
+import { marked } from 'marked'
 
 type Note = {
   id: string
@@ -24,13 +25,29 @@ type Emits = {
 }
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+marked.use({
+  breaks: true,
+  renderer: {
+    heading(text: string, level: number) {
+      return '#'.repeat(level) + ' ' + text
+    },
+    html(html: string) {
+      return html
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/\'/g, '&#x27;')
+        .replace(/`/g, '&#x60')
+    },
+  },
+})
 </script>
 <template>
   <div class="note-list-root">
     <div v-for="note in props.notes" class="note">
-      {{ note.id }},{{ note.content }},{{ note.editorId }},{{
-        note.createdAt
-      }},{{ note.updatedAt }}
+      <div v-html="marked.parse(note.content)"></div>
       <HoverMenu
         class="hover-menu"
         :tree-button="canExpandTree"
