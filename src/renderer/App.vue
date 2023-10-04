@@ -90,15 +90,7 @@ onUnmounted(() => {
 <template>
   <div class="app-layout">
     <div class="titlebar">
-      <button
-        type="button"
-        @click="
-          () => {
-            showMenu = !showMenu
-            console.log(showMenu)
-          }
-        "
-      >
+      <button type="button" @click="() => (showMenu = !showMenu)">
         メニュー
       </button>
       <input
