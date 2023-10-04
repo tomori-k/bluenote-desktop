@@ -9,8 +9,13 @@ type ThreadUpdate = Partial<Pick<Thread, 'name' | 'displayMode'>> &
 type NoteCreate = Pick<Note, 'content' | 'threadId'> &
   Partial<Pick<Note, 'parentId'>>
 type NoteUpdate = Partial<Pick<Note, 'content'>> & Pick<Note, 'id'>
+type NoteRestore = Pick<Note, 'id' | 'threadId' | 'parentId'>
 type FindOptionNote = Partial<Pick<Note, 'threadId' | 'removed'>> &
   Pick<Partial<{ [K in keyof Note]: Note[K] | null }>, 'parentId'>
+type NoteRestoreResult = {
+  thread: Thread
+  notes: Note[]
+}
 
 export const api = {
   async getAllThreads(): Promise<Thread[]> {
@@ -43,8 +48,11 @@ export const api = {
   async removeNote(noteId: string) {
     await ipcRenderer.invoke(IpcChannel.RemoveNote, noteId)
   },
-  async deleteNote(noteId: string) {
-    await ipcRenderer.invoke(IpcChannel.DeleteNote, noteId)
+  async restoreNote(note: NoteRestore): Promise<NoteRestoreResult> {
+    return await ipcRenderer.invoke(IpcChannel.RestoreNote, note)
+  },
+  async deleteNote(noteId: string): Promise<Note[]> {
+    return await ipcRenderer.invoke(IpcChannel.DeleteNote, noteId)
   },
 }
 

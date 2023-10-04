@@ -306,12 +306,72 @@ const createWindow = async () => {
     })
   })
 
+  ipcMain.handle(IpcChannel.RestoreNote, async (_, note) => {
+    // まずスレッドを復元
+    const thread = await prisma.thread.update({
+      where: {
+        id: note.threadId,
+      },
+      data: {
+        removed: false,
+      },
+    })
+
+    const notes = []
+
+    // 親があればそれも復元
+    if (note.parentId != null) {
+      const parentNote = await prisma.note.update({
+        where: {
+          id: note.parentId,
+        },
+        data: {
+          removed: false,
+        },
+      })
+      notes.push(parentNote)
+    }
+
+    // 自身
+    const updated = await prisma.note.update({
+      where: {
+        id: note.id,
+      },
+      data: {
+        removed: false,
+      },
+    })
+    notes.push(updated)
+
+    // ツリーのメモも復元してもいいけど、updateMany で更新分が
+    // 取得できない(事前に findMany しておく必要がある)っぽくて
+    // めんどくさいのでやらない
+
+    return {
+      thread: thread,
+      notes: notes,
+    }
+  })
+
   ipcMain.handle(IpcChannel.DeleteNote, async (_, noteId) => {
+    const deletedNotes = await prisma.note.findMany({
+      where: {
+        OR: [
+          {
+            id: noteId,
+          },
+          {
+            parentId: noteId,
+          },
+        ],
+      },
+    })
     await prisma.note.delete({
       where: {
         id: noteId,
       },
     })
+    return deletedNotes
   })
 
   // todo: なんとかする

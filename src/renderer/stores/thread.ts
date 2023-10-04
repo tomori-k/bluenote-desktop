@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { Thread } from '../../common/thread'
+import { Note } from '../../common/note'
 
 export const useThreadStore = defineStore('threads', {
   state() {
@@ -40,6 +41,16 @@ export const useThreadStore = defineStore('threads', {
       await window.api.removeThread(threadId)
 
       this.threads.splice(idx, 1)
+    },
+    threadOf(note: Note): Thread {
+      const thread = this.threads.find((x) => x.id === note.threadId)
+      if (thread == null) throw new Error('No thread found')
+      return thread
+    },
+    onRestored(thread: Thread) {
+      if (this.threads.find((x) => x.id === thread.id) == null) {
+        this.threads.push(thread)
+      }
     },
   },
 })

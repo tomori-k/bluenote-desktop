@@ -32,9 +32,9 @@ model Note {
   editorId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  thread    Thread   @relation(fields: [threadId], references: [id])
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
   threadId  String
-  parent    Note?    @relation("Tree", fields: [parentId], references: [id])
+  parent    Note?    @relation("Tree", fields: [parentId], references: [id], onDelete: Cascade)
   parentId  String?
   notes     Note[]   @relation("Tree")
   removed   Boolean

@@ -72,6 +72,7 @@ watch(
     <Trash
       class="trash"
       v-show="showTrash"
+      :opened="showTrash"
       @close-clicked="() => (showTrash = false)"
     />
   </div>

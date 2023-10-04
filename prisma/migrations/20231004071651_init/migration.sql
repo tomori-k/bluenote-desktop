@@ -26,8 +26,8 @@ CREATE TABLE "Note" (
     "removed" BOOLEAN NOT NULL,
     "removedAt" DATETIME NOT NULL,
     CONSTRAINT "Note_editorId_fkey" FOREIGN KEY ("editorId") REFERENCES "Device" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "Note_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "Thread" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "Note_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Note" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT "Note_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "Thread" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Note_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Note" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
