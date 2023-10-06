@@ -659,7 +659,7 @@ impl Pairing {
             BluetoothDevice::FromIdAsync(&HSTRING::from(windows_device_id))?.await?;
         let rfcomm_services = bluetooth_device
             .GetRfcommServicesForIdWithCacheModeAsync(
-                &RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE))?,
+                &RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE_SYNC_INIT))?,
                 BluetoothCacheMode::Uncached,
             )?
             .await?;
