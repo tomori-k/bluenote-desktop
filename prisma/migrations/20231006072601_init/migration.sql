@@ -4,8 +4,11 @@ CREATE TABLE "Thread" (
     "name" TEXT NOT NULL,
     "displayMode" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
     "removed" BOOLEAN NOT NULL,
-    "removedAt" DATETIME NOT NULL
+    "removedAt" DATETIME NOT NULL,
+    "updatedById" TEXT NOT NULL,
+    CONSTRAINT "Thread_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "Device" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -41,5 +44,6 @@ CREATE TABLE "Device" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
     "me" BOOLEAN NOT NULL,
-    "syncedAt" DATETIME NOT NULL
+    "syncedAt" DATETIME NOT NULL,
+    "syncEnabled" BOOLEAN NOT NULL
 );

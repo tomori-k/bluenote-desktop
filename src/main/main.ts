@@ -2,20 +2,25 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import {
   startBluetoothScan,
-  setOnFound,
-  setOnPairingRequested,
-  pair,
-  respondToPairRequest,
   stopBluetoothScan,
-  sync,
   startSyncServer,
   stopSyncServer,
-  setOnUpdatesRequested,
-  passUpdates,
+  listenSyncRequest,
+  stopListenSyncRequest,
+  setOnBluetoothDeviceFound,
+  setOnBondRequested,
+  setOnSyncEnabled,
+  setOnNoteUpdatesRequested,
+  requestSync,
+  respondToBondRequest,
+  respondToNoteUpdatesRequest,
+  fetchNoteUpdatesFromNearbyDevices,
 } from 'bluenote-bluetooth'
 import { IpcChannel } from '../preload/channel'
 import { PrismaClient } from '@prisma/client'
 import { randomUUID } from 'crypto'
+import { Thread } from '../common/thread'
+import { Note } from '../common/note'
 
 const prisma = new PrismaClient()
 
@@ -33,6 +38,10 @@ const createWindow = async () => {
     shell.openExternal(url)
   })
 
+  window.webContents.on('focus', () => {
+    console.log('focus!')
+  })
+
   const myDeviceId = await (async function () {
     // 初回起動時に自身のIDを生成
     let device = await prisma.device.findFirst({ where: { me: true } })
@@ -43,6 +52,7 @@ const createWindow = async () => {
           name: '',
           me: true,
           syncedAt: new Date(0),
+          syncEnabled: false,
         },
       })
     }
@@ -51,31 +61,56 @@ const createWindow = async () => {
 
   console.log(`My device id: ${myDeviceId}`)
 
-  setOnFound(async (_, deviceName, deviceId) => {
-    window.webContents.send(
-      IpcChannel.BluetoothDeviceFound,
-      deviceName,
-      deviceId
-    )
+  setOnBluetoothDeviceFound(async (_, deviceName, deviceId) => {
+    window.webContents.send(IpcChannel.BluetoothDeviceFound, {
+      name: deviceName,
+      windowsDeviceId: deviceId,
+    })
   })
 
-  setOnPairingRequested((_, deviceName, pin) => {
-    window.webContents.send(IpcChannel.PairingRequested, deviceName, pin)
+  setOnBondRequested((_, deviceName, pin) => {
+    window.webContents.send(IpcChannel.BondRequested, deviceName, pin)
   })
 
-  setOnUpdatesRequested(async (_, uuid) => {
+  setOnNoteUpdatesRequested(async (_, uuid) => {
     console.log(`Update requested from: ${uuid}`)
 
     // 最終同期時刻、現在時刻を取得
-    const device = (await prisma.device.findFirst({
+    const device = await prisma.device.findFirst({
       where: {
         id: uuid,
+        syncEnabled: true,
       },
-    })) ?? { id: uuid, syncedAt: new Date(0) }
+    })
     const timestamp = new Date()
 
+    // 同期が有効であるデバイスが DB になければ
+    // メモの送信を拒否
+    if (device == null) {
+      respondToNoteUpdatesRequest(null)
+      return
+    }
+
     // 更新分を取得
-    const updates = await prisma.note.findMany({
+
+    const threadUpdated = await prisma.thread.findMany({
+      where: {
+        updatedById: myDeviceId,
+        updatedAt: {
+          gte: device.syncedAt,
+          lt: timestamp,
+        },
+      },
+    })
+    const threadDeleted = await prisma.deletedThread.findMany({
+      where: {
+        deletedAt: {
+          gte: device.syncedAt,
+          lt: timestamp,
+        },
+      },
+    })
+    const noteUpdated = await prisma.note.findMany({
       where: {
         editorId: myDeviceId,
         updatedAt: {
@@ -84,29 +119,61 @@ const createWindow = async () => {
         },
       },
     })
+    const noteDeleted = await prisma.deletedNote.findMany({
+      where: {
+        deletedAt: {
+          gte: device.syncedAt,
+          lt: timestamp,
+        },
+      },
+    })
 
     // 最終同期時刻を更新
-    await prisma.device.upsert({
+    await prisma.device.update({
       where: {
         id: device.id,
       },
-      create: {
-        id: device.id,
-        name: '',
-        me: false,
-        syncedAt: timestamp,
-      },
-      update: {
+      data: {
         syncedAt: timestamp,
       },
     })
 
-    const json = JSON.stringify(updates)
+    const json = JSON.stringify({
+      thread: {
+        updated: threadUpdated,
+        deleted: threadDeleted,
+      },
+      note: {
+        updated: noteUpdated,
+        deleted: noteDeleted,
+      },
+    })
 
     console.log(json)
 
     // Rust 側に送信
-    passUpdates(json)
+    respondToNoteUpdatesRequest(json)
+  })
+
+  setOnSyncEnabled(async (_, name, uuid) => {
+    await prisma.device.create({
+      data: {
+        id: uuid,
+        name: name,
+        me: false,
+        syncEnabled: true,
+        syncedAt: new Date(0),
+      },
+    })
+  })
+
+  ipcMain.handle(IpcChannel.ListenSyncRequest, () => {
+    listenSyncRequest(myDeviceId)
+    window.webContents.send(IpcChannel.StateSyncRequestListen, true)
+    setTimeout(() => {
+      stopListenSyncRequest()
+      window.webContents.send(IpcChannel.StateSyncRequestListen, false)
+    }, 60000)
   })
 
   ipcMain.handle(IpcChannel.StartBluetoothScan, async () => {
@@ -118,14 +185,39 @@ const createWindow = async () => {
     }, 60000)
   })
 
-  ipcMain.handle(IpcChannel.RespondToPairingRequest, (_, accept) => {
-    console.log('accept: ' + accept)
-    respondToPairRequest(accept)
+  ipcMain.handle(IpcChannel.GetSyncDevices, async () => {
+    const devices = await prisma.device.findMany({
+      where: {
+        me: false,
+        syncEnabled: true,
+      },
+    })
+
+    return devices.map((x) => ({
+      uuid: x.id,
+      name: x.name,
+    }))
   })
 
-  ipcMain.handle(IpcChannel.RequestPairing, async (_, deviceId) => {
-    console.log('request: ' + deviceId)
-    await pair(deviceId)
+  ipcMain.handle(IpcChannel.RequestSync, (_, windowsDeviceId) => {
+    console.log('request: ' + windowsDeviceId)
+    requestSync(windowsDeviceId)
+  })
+
+  ipcMain.handle(IpcChannel.DisableSync, async (_, deviceUuid) => {
+    await prisma.device.update({
+      where: {
+        id: deviceUuid,
+      },
+      data: {
+        syncEnabled: false,
+      },
+    })
+  })
+
+  ipcMain.handle(IpcChannel.RespondToBondRequest, (_, accept) => {
+    console.log('accept: ' + accept)
+    respondToBondRequest(accept)
   })
 
   // DBアクセス
@@ -152,6 +244,7 @@ const createWindow = async () => {
         displayMode: thread.displayMode,
         removed: false,
         removedAt: new Date(0),
+        updatedById: myDeviceId,
       },
     })
   })
@@ -374,52 +467,225 @@ const createWindow = async () => {
     return deletedNotes
   })
 
-  // todo: なんとかする
-  async function wrappedSync() {
-    const noteJsonList = await sync(myDeviceId)
-    const notes = []
-    for (const noteJson of noteJsonList) {
-      const noteList = JSON.parse(noteJson)
-      for (const note of noteList) {
-        notes.push(note)
-      }
-    }
-    return notes
+  type DeletedThread = {
+    id: string
+    deletedAt: Date
   }
 
-  ipcMain.handle(IpcChannel.Sync, async (_) => {
-    const updates = await wrappedSync()
-    const updatesAdded = []
-    // const editors = new Set(updates.map((x) => x.editor))
+  type DeletedNote = {
+    id: string
+    deletedAt: Date
+  }
 
-    // 新規デバイスがあれば DB に追加
-    // for (const editor of editors) {
-    //   const device = await prisma.device.findFirst({
-    //     where: {
-    //       id: editor,
-    //     },
-    //   })
+  type SyncData = {
+    thread: {
+      updated: Thread[]
+      deleted: DeletedThread[]
+    }
+    note: {
+      updated: Note[]
+      deleted: DeletedNote[]
+    }
+  }
 
-    //   if (device == null) {
-    //     await prisma.device.create({
-    //       data: {
-    //         id: editor,
-    //         name: randomUUID(), // 一旦適当
-    //         me: false,
-    //       },
-    //     })
-    //   }
-    // }
+  // 未デバッグ（死）
+  async function sync() {
+    const jsonList = await fetchNoteUpdatesFromNearbyDevices(myDeviceId)
+    const threadUpdates = new Map<
+      string,
+      | { updateType: 'update'; value: Thread }
+      | { updateType: 'delete'; value: DeletedThread }
+    >()
+    const noteUpdates = new Map<
+      string,
+      | { updateType: 'update'; value: Note }
+      | { updateType: 'delete'; value: DeletedNote }
+    >()
 
-    for (const update of updates) {
-      const added = await prisma.note.create({
-        data: update,
-      })
-      updatesAdded.push(added)
+    // 更新情報を合算
+    for (const json of jsonList) {
+      const syncData = JSON.parse(json) as SyncData
+
+      for (const updated of syncData.thread.updated) {
+        const latest = threadUpdates.get(updated.id)
+        const latestUpdateAt =
+          latest?.updateType === 'update'
+            ? latest.value.updatedAt
+            : latest?.updateType === 'delete'
+            ? latest.value.deletedAt
+            : new Date(0)
+
+        if (updated.updatedAt > latestUpdateAt) {
+          threadUpdates.set(updated.id, {
+            updateType: 'update',
+            value: updated,
+          })
+        }
+      }
+
+      for (const deleted of syncData.thread.deleted) {
+        const latest = threadUpdates.get(deleted.id)
+        const latestUpdateAt =
+          latest?.updateType === 'update'
+            ? latest.value.updatedAt
+            : latest?.updateType === 'delete'
+            ? latest.value.deletedAt
+            : new Date(0)
+
+        if (deleted.deletedAt > latestUpdateAt) {
+          threadUpdates.set(deleted.id, {
+            updateType: 'delete',
+            value: deleted,
+          })
+        }
+      }
+
+      for (const updated of syncData.note.updated) {
+        const latest = noteUpdates.get(updated.id)
+        const latestUpdateAt =
+          latest?.updateType === 'update'
+            ? latest.value.updatedAt
+            : latest?.updateType === 'delete'
+            ? latest.value.deletedAt
+            : new Date(0)
+
+        if (updated.updatedAt > latestUpdateAt) {
+          noteUpdates.set(updated.id, { updateType: 'update', value: updated })
+        }
+      }
+
+      for (const deleted of syncData.note.deleted) {
+        const latest = noteUpdates.get(deleted.id)
+        const latestUpdateAt =
+          latest?.updateType === 'update'
+            ? latest.value.updatedAt
+            : latest?.updateType === 'delete'
+            ? latest.value.deletedAt
+            : new Date(0)
+
+        if (deleted.deletedAt > latestUpdateAt) {
+          noteUpdates.set(deleted.id, { updateType: 'delete', value: deleted })
+        }
+      }
     }
 
-    return updatesAdded
-  })
+    // DB に保存
+
+    const threadUpdated = []
+    const threadDeletedIds = []
+    const noteUpdated = []
+    const noteDeletedIds = []
+
+    for (const update of threadUpdates.values()) {
+      if (update.updateType === 'update') {
+        threadUpdated.push(update.value)
+      } else {
+        threadDeletedIds.push(update.value.id)
+      }
+    }
+
+    for (const update of noteUpdates.values()) {
+      if (update.updateType === 'update') {
+        noteUpdated.push(update.value)
+      } else {
+        noteDeletedIds.push(update.value.id)
+      }
+    }
+
+    for (const update of threadUpdated) {
+      await prisma.thread.update({
+        where: {
+          id: update.id,
+        },
+        data: {
+          name: update.name,
+          displayMode: update.displayMode,
+          updatedAt: update.updatedAt,
+          removed: update.removed,
+          removedAt: update.removedAt,
+          updatedById: update.updatedById,
+        },
+      })
+    }
+
+    for (const update of noteUpdated) {
+      await prisma.note.update({
+        where: {
+          id: update.id,
+        },
+        data: {
+          content: update.content,
+          editorId: update.editorId,
+          updatedAt: update.updatedAt,
+          removed: update.removed,
+          removedAt: update.removedAt,
+        },
+      })
+    }
+
+    await prisma.thread.deleteMany({
+      where: {
+        id: {
+          in: threadDeletedIds,
+        },
+      },
+    })
+
+    await prisma.note.deleteMany({
+      where: {
+        id: {
+          in: noteDeletedIds,
+        },
+      },
+    })
+  }
+
+  // todo: なんとかする
+  // async function wrappedSync() {
+  //   const noteJsonList = await sync(myDeviceId)
+  //   const notes = []
+  //   for (const noteJson of noteJsonList) {
+  //     const noteList = JSON.parse(noteJson)
+  //     for (const note of noteList) {
+  //       notes.push(note)
+  //     }
+  //   }
+  //   return notes
+  // }
+
+  // ipcMain.handle(IpcChannel.Sync, async (_) => {
+  //   const updates = await wrappedSync()
+  //   const updatesAdded = []
+  // const editors = new Set(updates.map((x) => x.editor))
+
+  // 新規デバイスがあれば DB に追加
+  // for (const editor of editors) {
+  //   const device = await prisma.device.findFirst({
+  //     where: {
+  //       id: editor,
+  //     },
+  //   })
+
+  //   if (device == null) {
+  //     await prisma.device.create({
+  //       data: {
+  //         id: editor,
+  //         name: randomUUID(), // 一旦適当
+  //         me: false,
+  //       },
+  //     })
+  //   }
+  // }
+
+  //   for (const update of updates) {
+  //     const added = await prisma.note.create({
+  //       data: update,
+  //     })
+  //     updatesAdded.push(added)
+  //   }
+
+  //   return updatesAdded
+  // })
 
   // データ同期サーバ起動
   startSyncServer()

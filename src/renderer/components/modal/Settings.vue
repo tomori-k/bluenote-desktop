@@ -1,35 +1,51 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import AppearanceOptions from './AppearanceOptions.vue'
+import SyncSettings from './SyncSettings.vue'
+import SyncDevice from './SyncDevice.vue'
+
+enum SettingsPage {
+  Appearance,
+  DataSync,
+  DataSyncDevice,
+}
+
 type Emits = {
   (e: 'close-clicked'): void
 }
 const emit = defineEmits<Emits>()
+
+const page = ref(SettingsPage.Appearance)
 </script>
 
 <template>
   <div class="settings-layout" @click="() => emit('close-clicked')">
     <div class="container" v-on:click="(e) => e.stopPropagation()">
-      設定
-      <button type="button" @click="() => emit('close-clicked')">閉じる</button>
-      <ul>
-        <li>外観</li>
-        <li>データ同期</li>
+      <div class="header">
+        設定
+        <button type="button" @click="() => emit('close-clicked')">
+          閉じる
+        </button>
+      </div>
+
+      <ul class="menu">
+        <li @click="page = SettingsPage.Appearance">外観</li>
+        <li @click="page = SettingsPage.DataSync">データ同期</li>
       </ul>
 
-      <label for="is-sync-snabled">データ同期</label>
-      <input type="checkbox" id="is-sync-enabled" />
-
-      <label for="is-sync-snabled">アプリ起動中はPCをスリープさせない</label>
-      <input type="checkbox" id="is-sync-enabled" />
-
-      <div>
-        同期する端末
-        <button type="button">追加</button>
-        <ul>
-          <li>Pixel 7</li>
-          <li>Pixel 6a</li>
-          <li>TK</li>
-        </ul>
-      </div>
+      <AppearanceOptions
+        class="content"
+        v-show="page === SettingsPage.Appearance"
+      />
+      <SyncSettings
+        class="content"
+        v-show="page === SettingsPage.DataSync"
+        @add-device-clicked="page = SettingsPage.DataSyncDevice"
+      />
+      <SyncDevice
+        class="content"
+        v-show="page === SettingsPage.DataSyncDevice"
+      />
     </div>
   </div>
 </template>
@@ -55,5 +71,26 @@ const emit = defineEmits<Emits>()
   top: 0;
   right: 0;
   bottom: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+}
+
+.header {
+  grid-row: 1/2;
+  grid-column: 1/3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.menu {
+  grid-row: 2/3;
+  grid-column: 1/2;
+}
+
+.content {
+  grid-row: 2/3;
+  grid-column: 2/3;
 }
 </style>

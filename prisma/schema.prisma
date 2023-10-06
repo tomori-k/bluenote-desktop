@@ -15,8 +15,11 @@ model Thread {
   name        String
   displayMode String // "monologue" or "scrap"
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   removed     Boolean
   removedAt   DateTime
+  updatedBy   Device   @relation(fields: [updatedById], references: [id])
+  updatedById String
   notes       Note[]
 }
 
@@ -47,9 +50,11 @@ model DeletedNote {
 }
 
 model Device {
-  id       String   @id
-  name     String
-  me       Boolean
-  syncedAt DateTime
-  Note     Note[]
+  id          String   @id
+  name        String
+  me          Boolean
+  syncedAt    DateTime
+  syncEnabled Boolean
+  Note        Note[]
+  Thread      Thread[]
 }

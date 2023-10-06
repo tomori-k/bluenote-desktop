@@ -1,8 +1,3 @@
-// #![deny(clippy::all)]
-
-// #[macro_use]
-// extern crate napi_derive;
-
 use napi::threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction};
 use napi::{bindgen_prelude::*, JsUndefined};
 use napi_derive::napi;
@@ -21,106 +16,28 @@ use windows::Networking::Sockets::*;
 use windows::Storage::Streams::{ByteOrder, DataReader, DataWriter};
 
 static UUID_RFCOMM_SERVICE: &str = "41f4bde2-0492-4bf5-bae2-4451be148999";
+static UUID_RFCOMM_SERVICE_SYNC_INIT: &str = "c144d029-2a62-4cfc-b39c-ca6ce173cb3f";
 
 static SYNC_SERVER: SyncServer = SyncServer {
     inner: Mutex::new(None),
     request_updates: Mutex::new(None),
     tx: Mutex::new(None),
 };
+static SYNC_REQUEST_LISTENER: SyncRequestListener = SyncRequestListener {
+    inner: Mutex::new(None),
+    on_sync_enabled: Mutex::new(None),
+};
 
 static PAIRING: Pairing = Pairing {
     tx_accept: Mutex::new(None),
     request_accept: Mutex::new(None),
+    on_sync_enabled: Mutex::new(None),
 };
 
 static BLUETOOTH_SCANNER: BluetoothScanner = BluetoothScanner {
     watcher: Mutex::new(None),
     on_added: Mutex::new(None),
 };
-
-#[napi(ts_return_type = "Promise<void>")]
-pub fn start_sync_server() -> AsyncTask<SyncServerStartTask> {
-    AsyncTask::new(SyncServerStartTask {})
-}
-
-#[napi]
-pub fn stop_sync_server() -> Result<()> {
-    match SYNC_SERVER.stop() {
-        Ok(_) => Ok(()),
-        Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
-    }
-}
-
-// デバイス<UUID> から更新分の送信リクエストが来た時のコールバックを設定
-#[napi(ts_args_type = "callback: (err: null | Error, uuid: string) => void")]
-pub fn set_on_updates_requested(callback: JsFunction) -> Result<()> {
-    let tsfn = callback.create_threadsafe_function(0, |ctx: ThreadSafeCallContext<String>| {
-        vec![ctx.value]
-            .iter()
-            .map(|x| ctx.env.create_string(&x))
-            .collect()
-    })?;
-
-    let mut request_updates = SYNC_SERVER.request_updates.lock().unwrap();
-    *request_updates = Some(tsfn);
-
-    Ok(())
-}
-
-// 更新分の送信リクエストに対する返信用関数
-#[napi]
-pub fn pass_updates(json: String) -> Result<()> {
-    let mut tx = SYNC_SERVER.tx.lock().unwrap();
-
-    if let Some(tx) = tx.take() {
-        tx.send(json).unwrap();
-    }
-
-    Ok(())
-}
-
-#[napi(ts_return_type = "Promise<string[]>")]
-pub fn sync(device_id: String) -> AsyncTask<SyncTask> {
-    AsyncTask::new(SyncTask { uuid: device_id })
-}
-
-// bond?
-
-#[napi(ts_return_type = "Promise<void>")]
-pub fn pair(device_id: String) -> AsyncTask<PairTask> {
-    AsyncTask::new(PairTask {
-        device_id: device_id,
-    })
-}
-
-#[napi]
-pub fn respond_to_pair_request(accept: bool) {
-    let mut tx = PAIRING.tx_accept.lock().unwrap();
-
-    if let Some(tx) = tx.take() {
-        tx.send(accept).unwrap();
-    }
-}
-
-#[napi(
-    ts_args_type = "callback: (err: null | Error, deviceName: string, deviceId: string) => void"
-)]
-pub fn set_on_found(callback: JsFunction) -> Result<()> {
-    let tsfn = callback.create_threadsafe_function(
-        0,
-        |ctx: ThreadSafeCallContext<(String, String)>| {
-            vec![ctx.value.0, ctx.value.1]
-                .iter()
-                .map(|x| ctx.env.create_string(&x))
-                .collect()
-        },
-    )?;
-
-    let mut on_found = BLUETOOTH_SCANNER.on_added.lock().unwrap();
-    *on_found = Some(tsfn);
-
-    Ok(())
-}
 
 #[napi]
 pub fn start_bluetooth_scan() -> Result<()> {
@@ -138,8 +55,54 @@ pub fn stop_bluetooth_scan() -> Result<()> {
     }
 }
 
+#[napi(ts_return_type = "Promise<void>")]
+pub fn start_sync_server() -> AsyncTask<SyncServerStartTask> {
+    AsyncTask::new(SyncServerStartTask {})
+}
+
+#[napi]
+pub fn stop_sync_server() -> Result<()> {
+    match SYNC_SERVER.stop() {
+        Ok(_) => Ok(()),
+        Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
+    }
+}
+
+#[napi]
+pub fn listen_sync_request(my_uuid: String) -> AsyncTask<SyncRequestListenerStartTask> {
+    AsyncTask::new(SyncRequestListenerStartTask { my_uuid })
+}
+
+#[napi]
+pub fn stop_listen_sync_request() -> Result<()> {
+    match SYNC_REQUEST_LISTENER.stop() {
+        Ok(_) => Ok(()),
+        Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
+    }
+}
+
+#[napi(
+    ts_args_type = "callback: (err: null | Error, deviceName: string, deviceId: string) => void"
+)]
+pub fn set_on_bluetooth_device_found(callback: JsFunction) -> Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<(String, String)>| {
+            vec![ctx.value.0, ctx.value.1]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    let mut on_found = BLUETOOTH_SCANNER.on_added.lock().unwrap();
+    *on_found = Some(tsfn);
+
+    Ok(())
+}
+
 #[napi(ts_args_type = "callback: (err: null | Error, deviceName: string, pin: string) => void")]
-pub fn set_on_pairing_requested(callback: JsFunction) -> Result<()> {
+pub fn set_on_bond_requested(callback: JsFunction) -> Result<()> {
     let tsfn = callback.create_threadsafe_function(
         0,
         |ctx: ThreadSafeCallContext<(String, String)>| {
@@ -156,6 +119,259 @@ pub fn set_on_pairing_requested(callback: JsFunction) -> Result<()> {
     Ok(())
 }
 
+#[napi(
+    ts_args_type = "callback: (err: null | Error, deviceName: string, deviceUuid: string) => void"
+)]
+pub fn set_on_sync_enabled(callback: JsFunction) -> Result<()> {
+    // wwww
+    let tsfn1 = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<(String, String)>| {
+            vec![ctx.value.0, ctx.value.1]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+    let tsfn2 = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<(String, String)>| {
+            vec![ctx.value.0, ctx.value.1]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    let mut callback1 = SYNC_REQUEST_LISTENER.on_sync_enabled.lock().unwrap();
+    let mut callback2 = PAIRING.on_sync_enabled.lock().unwrap();
+
+    *callback1 = Some(tsfn1);
+    *callback2 = Some(tsfn2);
+
+    Ok(())
+}
+
+// デバイス<UUID> から更新分の送信リクエストが来た時のコールバックを設定
+#[napi(ts_args_type = "callback: (err: null | Error, uuid: string) => void")]
+pub fn set_on_note_updates_requested(callback: JsFunction) -> Result<()> {
+    let tsfn = callback.create_threadsafe_function(0, |ctx: ThreadSafeCallContext<String>| {
+        vec![ctx.value]
+            .iter()
+            .map(|x| ctx.env.create_string(&x))
+            .collect()
+    })?;
+
+    let mut request_updates = SYNC_SERVER.request_updates.lock().unwrap();
+    *request_updates = Some(tsfn);
+
+    Ok(())
+}
+
+// -> request_sync_init
+#[napi(ts_return_type = "Promise<void>")]
+pub fn request_sync(windows_device_id: String) -> AsyncTask<PairTask> {
+    AsyncTask::new(PairTask {
+        device_id: windows_device_id,
+    })
+}
+
+#[napi]
+pub fn respond_to_bond_request(accept: bool) {
+    let mut tx = PAIRING.tx_accept.lock().unwrap();
+
+    if let Some(tx) = tx.take() {
+        tx.send(accept).unwrap();
+    }
+}
+
+// 更新分の送信リクエストに対する返信用関数
+#[napi]
+pub fn respond_to_note_updates_request(json: Option<String>) -> Result<()> {
+    let mut tx = SYNC_SERVER.tx.lock().unwrap();
+
+    if let Some(tx) = tx.take() {
+        tx.send(json).unwrap();
+    }
+
+    Ok(())
+}
+
+#[napi(ts_return_type = "Promise<string[]>")]
+pub fn fetch_note_updates_from_nearby_devices(my_uuid: String) -> AsyncTask<SyncTask> {
+    AsyncTask::new(SyncTask { uuid: my_uuid })
+}
+
+struct SyncRequestListnerState {
+    my_device_uuid: String,
+    listener: StreamSocketListener,
+    provider: RfcommServiceProvider,
+}
+
+struct SyncRequestListener {
+    inner: Mutex<Option<SyncRequestListnerState>>,
+    on_sync_enabled: Mutex<Option<ThreadsafeFunction<(String, String)>>>,
+}
+
+impl SyncRequestListener {
+    fn on_received(
+        &'static self,
+        _: &Option<StreamSocketListener>,
+        e: &Option<StreamSocketListenerConnectionReceivedEventArgs>,
+    ) -> windows::core::Result<()> {
+        println!(
+            "Connected to: {}",
+            e.as_ref()
+                .unwrap()
+                .Socket()?
+                .Information()?
+                .RemoteHostName()?
+                .DisplayName()?
+        );
+
+        let my_uuid = self
+            .inner
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .my_device_uuid
+            .to_owned();
+        let socket = e.as_ref().unwrap().Socket()?;
+        let input_stream = socket.InputStream().unwrap();
+        let output_stream = socket.OutputStream().unwrap();
+        let reader = DataReader::CreateDataReader(&input_stream)?;
+        let writer = DataWriter::CreateDataWriter(&output_stream)?;
+        let local = tokio::task::LocalSet::new();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        reader.SetByteOrder(ByteOrder::LittleEndian)?;
+        writer.SetByteOrder(ByteOrder::LittleEndian)?;
+
+        local.spawn_local(async move {
+            // 自身のデバイスIDを送信
+
+            writer.WriteString(&HSTRING::from(my_uuid))?;
+            writer.StoreAsync()?.await?;
+            writer.FlushAsync()?.await?;
+
+            // 相手のデバイスの UUID を受信
+
+            reader.LoadAsync(36)?.await?;
+            let uuid = reader.ReadString(36)?.to_string();
+
+            println!("UUID: {}", uuid);
+
+            // ACK 送信
+
+            writer.WriteByte(0)?;
+            writer.StoreAsync()?.await?;
+            writer.FlushAsync()?.await?;
+
+            // ACK 受信
+
+            reader.LoadAsync(1)?.await?;
+            reader.ReadByte()?;
+
+            let device =
+                BluetoothDevice::FromHostNameAsync(&socket.Information()?.RemoteHostName()?)?
+                    .await?;
+            let device_name = device.Name()?.to_string();
+
+            if let Some(on_sync_enabled) = self.on_sync_enabled.lock().unwrap().as_ref() {
+                on_sync_enabled.call(
+                    Ok((device_name, uuid)),
+                    napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
+                );
+            }
+
+            drop(socket);
+
+            println!("Connection closed.");
+
+            Ok::<(), windows::core::Error>(())
+        });
+
+        rt.block_on(local);
+
+        Ok(())
+    }
+
+    async fn start(&'static self, device_uuid: String) -> windows::core::Result<()> {
+        let mut inner = self.inner.lock().unwrap();
+
+        if inner.is_some() {
+            return Ok(());
+        }
+
+        let rfcomm_service_id =
+            RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE_SYNC_INIT))?;
+        let provider = RfcommServiceProvider::CreateAsync(&rfcomm_service_id)?.await?;
+        let listener = StreamSocketListener::new()?;
+
+        *inner = Some(SyncRequestListnerState {
+            my_device_uuid: device_uuid,
+            listener,
+            provider,
+        });
+
+        let listener = &inner.as_ref().unwrap().listener;
+        let provider = &inner.as_ref().unwrap().provider;
+
+        listener.ConnectionReceived(&TypedEventHandler::new(|s, e| self.on_received(s, e)))?;
+        listener
+            .BindServiceNameWithProtectionLevelAsync(
+                &provider.ServiceId()?.AsString()?,
+                SocketProtectionLevel::BluetoothEncryptionWithAuthentication, /* Androidの設定と合わせる */
+            )?
+            .await?;
+
+        provider.StartAdvertisingWithRadioDiscoverability(listener, true)?; // 必要
+
+        Ok(())
+    }
+
+    fn stop(&self) -> windows::core::Result<()> {
+        let mut inner = self.inner.lock().unwrap();
+
+        if let Some(state) = inner.as_ref() {
+            state.provider.StopAdvertising()?;
+            *inner = None;
+        }
+
+        Ok(())
+    }
+}
+
+pub struct SyncRequestListenerStartTask {
+    my_uuid: String,
+}
+
+impl Task for SyncRequestListenerStartTask {
+    type Output = ();
+    type JsValue = JsUndefined;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let future = SYNC_REQUEST_LISTENER.start(self.my_uuid.to_owned());
+
+        match rt.block_on(future) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
+        }
+    }
+
+    fn resolve(&mut self, env: Env, _: Self::Output) -> Result<Self::JsValue> {
+        env.get_undefined()
+    }
+}
+
 // ↑↑↑
 
 struct SyncServerState {
@@ -166,7 +382,7 @@ struct SyncServerState {
 struct SyncServer {
     inner: Mutex<Option<SyncServerState>>,
     request_updates: Mutex<Option<ThreadsafeFunction<String>>>,
-    tx: Mutex<Option<oneshot::Sender<String>>>,
+    tx: Mutex<Option<oneshot::Sender<Option<String>>>>,
 }
 
 impl SyncServer {
@@ -222,13 +438,21 @@ impl SyncServer {
 
             let json = rx.await.unwrap();
 
-            // JSON 書き込み
-            let json = json.as_bytes();
+            if let Some(json) = json {
+                // JSON 書き込み
+                let json = json.as_bytes();
 
-            writer.WriteUInt32(json.len() as u32)?;
-            writer.WriteBytes(json)?;
-            writer.StoreAsync()?.await?;
-            writer.FlushAsync()?.await?;
+                writer.WriteUInt32(json.len() as u32)?;
+                writer.WriteBytes(json)?;
+                writer.StoreAsync()?.await?;
+                writer.FlushAsync()?.await?;
+            } else {
+                // 拒否
+                // 0 を送信する
+                writer.WriteUInt32(0)?;
+                writer.StoreAsync()?.await?;
+                writer.FlushAsync()?.await?;
+            }
 
             // ACK 読み取り
             reader.LoadAsync(1)?.await?;
@@ -421,6 +645,7 @@ impl Task for SyncTask {
 struct Pairing {
     tx_accept: Mutex<Option<oneshot::Sender<bool>>>,
     request_accept: Mutex<Option<ThreadsafeFunction<(String, String)>>>,
+    on_sync_enabled: Mutex<Option<ThreadsafeFunction<(String, String)>>>,
 }
 
 impl Pairing {
@@ -460,6 +685,69 @@ impl Pairing {
                     } else {
                         "Failed"
                     }
+                );
+
+                if result.Status()? != DevicePairingResultStatus::Paired {
+                    return Ok(()); // 全然 OK じゃないけどとりあえず OK にしとく
+                }
+            }
+
+            let service = rfcomm_services.Services()?.GetAt(0)?;
+            let device_name = bluetooth_device.Name()?.to_string();
+            let uuid: String;
+
+            println!("{}", device_name);
+
+            {
+                let socket = StreamSocket::new()?;
+
+                socket
+                    .ConnectWithProtectionLevelAsync(
+                        &service.ConnectionHostName()?,
+                        &service.ConnectionServiceName()?,
+                        SocketProtectionLevel::BluetoothEncryptionWithAuthentication,
+                    )?
+                    .await?;
+
+                println!("Connected!");
+
+                let writer = DataWriter::CreateDataWriter(&socket.OutputStream()?)?;
+                let reader = DataReader::CreateDataReader(&socket.InputStream()?)?;
+
+                writer.SetByteOrder(ByteOrder::LittleEndian)?;
+                reader.SetByteOrder(ByteOrder::LittleEndian)?;
+
+                // 自身のデバイスIDを送信
+
+                writer.WriteString(&HSTRING::from(device_id))?;
+                writer.StoreAsync()?.await?;
+                writer.FlushAsync()?.await?;
+
+                // 相手のデバイスの UUID を受信
+
+                reader.LoadAsync(36)?.await?;
+                uuid = reader.ReadString(36)?.to_string();
+
+                println!("UUID: {}", uuid);
+
+                // ACK 送信
+
+                writer.WriteByte(0)?;
+                writer.StoreAsync()?.await?;
+                writer.FlushAsync()?.await?;
+
+                // ACK 受信
+
+                reader.LoadAsync(1)?.await?;
+                reader.ReadByte()?;
+            }
+
+            println!("Connection closed.");
+
+            if let Some(on_sync_enabled) = self.on_sync_enabled.lock().unwrap().as_ref() {
+                on_sync_enabled.call(
+                    Ok((device_name, uuid)),
+                    napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
                 );
             }
         } else {

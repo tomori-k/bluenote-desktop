@@ -5,4 +5,6 @@ export type Thread = {
   createdAt: Date
   removed: boolean
   removedAt: Date
+  updatedById: string
+  updatedAt: Date
 }
