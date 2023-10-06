@@ -2,11 +2,14 @@
 
 ## 環境構築
 
-```
-npm i
-cd bluenote-bluetooth
-npm i
-```
+1. Rust と Node.js を導入しておく
+1. 以下のコマンドを実行
+   ```
+   npm i
+   npx prisma migrate dev
+   cd bluenote-bluetooth
+   npm i
+   ```
 
 ### IDE
 
@@ -14,6 +17,10 @@ npm i
 - VS Code ビルトインの TypeScript Language Server をオフにする
 
 ### 起動
+
+VS Code の実行とデバッグタブから `Debug` の構成を選択し、実行ボタンをクリック
+
+もしくは、
 
 ```
 npm run debug
