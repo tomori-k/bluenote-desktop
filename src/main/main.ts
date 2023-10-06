@@ -38,8 +38,8 @@ const createWindow = async () => {
     shell.openExternal(url)
   })
 
-  window.webContents.on('focus', () => {
-    console.log('focus!')
+  window.webContents.on('focus', async () => {
+    await sync()
   })
 
   const myDeviceId = await (async function () {
@@ -477,18 +477,37 @@ const createWindow = async () => {
     deletedAt: Date
   }
 
+  type ThreadParsed = Omit<Thread, 'createdAt' | 'updatedAt' | 'removedAt'> & {
+    createdAt: string
+    updatedAt: string
+    removedAt: string
+  }
+
+  type DeletedThreadParsed = Omit<DeletedThread, 'deletedAt'> & {
+    deletedAt: string
+  }
+
+  type NoteParsed = Omit<Note, 'createdAt' | 'updatedAt' | 'removedAt'> & {
+    createdAt: string
+    updatedAt: string
+    removedAt: string
+  }
+
+  type DeletedNoteParsed = Omit<DeletedNote, 'deletedAt'> & {
+    deletedAt: string
+  }
+
   type SyncData = {
     thread: {
-      updated: Thread[]
-      deleted: DeletedThread[]
+      updated: ThreadParsed[]
+      deleted: DeletedThreadParsed[]
     }
     note: {
-      updated: Note[]
-      deleted: DeletedNote[]
+      updated: NoteParsed[]
+      deleted: DeletedNoteParsed[]
     }
   }
 
-  // 未デバッグ（死）
   async function sync() {
     const jsonList = await fetchNoteUpdatesFromNearbyDevices(myDeviceId)
     const threadUpdates = new Map<
@@ -514,11 +533,17 @@ const createWindow = async () => {
             : latest?.updateType === 'delete'
             ? latest.value.deletedAt
             : new Date(0)
+        const updatedAt = new Date(updated.updatedAt)
 
-        if (updated.updatedAt > latestUpdateAt) {
+        if (updatedAt > latestUpdateAt) {
           threadUpdates.set(updated.id, {
             updateType: 'update',
-            value: updated,
+            value: {
+              ...updated,
+              createdAt: new Date(updated.createdAt),
+              updatedAt: new Date(updated.updatedAt),
+              removedAt: new Date(updated.removedAt),
+            },
           })
         }
       }
@@ -531,11 +556,15 @@ const createWindow = async () => {
             : latest?.updateType === 'delete'
             ? latest.value.deletedAt
             : new Date(0)
+        const deletedAt = new Date(deleted.deletedAt)
 
-        if (deleted.deletedAt > latestUpdateAt) {
+        if (deletedAt > latestUpdateAt) {
           threadUpdates.set(deleted.id, {
             updateType: 'delete',
-            value: deleted,
+            value: {
+              ...deleted,
+              deletedAt: deletedAt,
+            },
           })
         }
       }
@@ -548,9 +577,18 @@ const createWindow = async () => {
             : latest?.updateType === 'delete'
             ? latest.value.deletedAt
             : new Date(0)
+        const updatedAt = new Date(updated.updatedAt)
 
-        if (updated.updatedAt > latestUpdateAt) {
-          noteUpdates.set(updated.id, { updateType: 'update', value: updated })
+        if (updatedAt > latestUpdateAt) {
+          noteUpdates.set(updated.id, {
+            updateType: 'update',
+            value: {
+              ...updated,
+              createdAt: new Date(updated.createdAt),
+              updatedAt: new Date(updated.updatedAt),
+              removedAt: new Date(updated.removedAt),
+            },
+          })
         }
       }
 
@@ -562,9 +600,13 @@ const createWindow = async () => {
             : latest?.updateType === 'delete'
             ? latest.value.deletedAt
             : new Date(0)
+        const deletedAt = new Date(deleted.deletedAt)
 
-        if (deleted.deletedAt > latestUpdateAt) {
-          noteUpdates.set(deleted.id, { updateType: 'delete', value: deleted })
+        if (deletedAt > latestUpdateAt) {
+          noteUpdates.set(deleted.id, {
+            updateType: 'delete',
+            value: { ...deleted, deletedAt: deletedAt },
+          })
         }
       }
     }
@@ -592,12 +634,27 @@ const createWindow = async () => {
       }
     }
 
+    console.log(threadUpdated)
+    console.log(threadDeletedIds)
+    console.log(noteUpdated)
+    console.log(noteDeletedIds)
+
     for (const update of threadUpdated) {
-      await prisma.thread.update({
+      await prisma.thread.upsert({
         where: {
           id: update.id,
         },
-        data: {
+        create: {
+          id: update.id,
+          name: update.name,
+          displayMode: update.displayMode,
+          createdAt: update.createdAt,
+          updatedAt: update.updatedAt,
+          removed: update.removed,
+          removedAt: update.removedAt,
+          updatedById: update.updatedById,
+        },
+        update: {
           name: update.name,
           displayMode: update.displayMode,
           updatedAt: update.updatedAt,
@@ -609,11 +666,22 @@ const createWindow = async () => {
     }
 
     for (const update of noteUpdated) {
-      await prisma.note.update({
+      await prisma.note.upsert({
         where: {
           id: update.id,
         },
-        data: {
+        create: {
+          id: update.id,
+          content: update.content,
+          editorId: update.editorId,
+          createdAt: update.createdAt,
+          updatedAt: update.updatedAt,
+          threadId: update.threadId,
+          parentId: update.parentId,
+          removed: update.removed,
+          removedAt: update.removedAt,
+        },
+        update: {
           content: update.content,
           editorId: update.editorId,
           updatedAt: update.updatedAt,
@@ -638,54 +706,9 @@ const createWindow = async () => {
         },
       },
     })
+
+    console.log('sync finished.')
   }
-
-  // todo: なんとかする
-  // async function wrappedSync() {
-  //   const noteJsonList = await sync(myDeviceId)
-  //   const notes = []
-  //   for (const noteJson of noteJsonList) {
-  //     const noteList = JSON.parse(noteJson)
-  //     for (const note of noteList) {
-  //       notes.push(note)
-  //     }
-  //   }
-  //   return notes
-  // }
-
-  // ipcMain.handle(IpcChannel.Sync, async (_) => {
-  //   const updates = await wrappedSync()
-  //   const updatesAdded = []
-  // const editors = new Set(updates.map((x) => x.editor))
-
-  // 新規デバイスがあれば DB に追加
-  // for (const editor of editors) {
-  //   const device = await prisma.device.findFirst({
-  //     where: {
-  //       id: editor,
-  //     },
-  //   })
-
-  //   if (device == null) {
-  //     await prisma.device.create({
-  //       data: {
-  //         id: editor,
-  //         name: randomUUID(), // 一旦適当
-  //         me: false,
-  //       },
-  //     })
-  //   }
-  // }
-
-  //   for (const update of updates) {
-  //     const added = await prisma.note.create({
-  //       data: update,
-  //     })
-  //     updatesAdded.push(added)
-  //   }
-
-  //   return updatesAdded
-  // })
 
   // データ同期サーバ起動
   startSyncServer()
