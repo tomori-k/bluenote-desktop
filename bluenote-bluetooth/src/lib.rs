@@ -170,9 +170,10 @@ pub fn set_on_note_updates_requested(callback: JsFunction) -> Result<()> {
 
 // -> request_sync_init
 #[napi(ts_return_type = "Promise<void>")]
-pub fn request_sync(windows_device_id: String) -> AsyncTask<PairTask> {
+pub fn request_sync(windows_device_id: String, my_uuid: String) -> AsyncTask<PairTask> {
     AsyncTask::new(PairTask {
-        device_id: windows_device_id,
+        windows_device_id,
+        my_uuid,
     })
 }
 
@@ -649,8 +650,13 @@ struct Pairing {
 }
 
 impl Pairing {
-    async fn pair(&'static self, device_id: &str) -> windows::core::Result<()> {
-        let bluetooth_device = BluetoothDevice::FromIdAsync(&HSTRING::from(device_id))?.await?;
+    async fn pair(
+        &'static self,
+        windows_device_id: &str,
+        device_uuid: &str,
+    ) -> windows::core::Result<()> {
+        let bluetooth_device =
+            BluetoothDevice::FromIdAsync(&HSTRING::from(windows_device_id))?.await?;
         let rfcomm_services = bluetooth_device
             .GetRfcommServicesForIdWithCacheModeAsync(
                 &RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE))?,
@@ -719,7 +725,7 @@ impl Pairing {
 
                 // 自身のデバイスIDを送信
 
-                writer.WriteString(&HSTRING::from(device_id))?;
+                writer.WriteString(&HSTRING::from(device_uuid))?;
                 writer.StoreAsync()?.await?;
                 writer.FlushAsync()?.await?;
 
@@ -817,7 +823,8 @@ impl Pairing {
 }
 
 pub struct PairTask {
-    device_id: String,
+    windows_device_id: String,
+    my_uuid: String,
 }
 
 impl Task for PairTask {
@@ -829,7 +836,7 @@ impl Task for PairTask {
             .enable_all()
             .build()
             .unwrap();
-        let future = PAIRING.pair(&self.device_id);
+        let future = PAIRING.pair(&self.windows_device_id, &self.my_uuid);
 
         match rt.block_on(future) {
             Ok(_) => Ok(()),

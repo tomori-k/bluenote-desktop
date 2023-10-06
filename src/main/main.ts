@@ -201,7 +201,7 @@ const createWindow = async () => {
 
   ipcMain.handle(IpcChannel.RequestSync, (_, windowsDeviceId) => {
     console.log('request: ' + windowsDeviceId)
-    requestSync(windowsDeviceId)
+    requestSync(windowsDeviceId, myDeviceId)
   })
 
   ipcMain.handle(IpcChannel.DisableSync, async (_, deviceUuid) => {
