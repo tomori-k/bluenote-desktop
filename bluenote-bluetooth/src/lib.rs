@@ -260,7 +260,7 @@ pub fn respond_to_sync_request(allow: bool) {
 /// 現在時刻がリクエストされたときのコールバックを設定する
 #[napi(ts_args_type = "callback: (err: null | Error) => void")]
 pub fn set_on_now_requested(callback: JsFunction) -> napi::Result<()> {
-    let tsfn = callback.create_threadsafe_function(0, |ctx: ThreadSafeCallContext<()>| {
+    let tsfn = callback.create_threadsafe_function(0, |_: ThreadSafeCallContext<()>| {
         Ok::<Vec<()>, napi::Error>(vec![])
     })?;
 
