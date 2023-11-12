@@ -9,11 +9,20 @@ use napi::{bindgen_prelude::*, JsString, JsUndefined};
 use napi_derive::napi;
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
+use sync::server::{
+    RequestParamAllNotesInThread, RequestParamAllNotesInTree, RequestParamNoteUpdatesInThread,
+    RequestParamNoteUpdatesInTree, RequestParamSyncPermission, RequestParamThreadUpdates,
+    RequestParamUpdateSyncedAt,
+};
 use tokio::runtime::Runtime;
 
+/// Bluenote Result
 type Result<T> = std::result::Result<T, crate::error::Error>;
 
+/// 同期の RFCOMM サービス UUID
 static UUID_BLUENOTE_RFCOMM: &str = "41f4bde2-0492-4bf5-bae2-4451be148999";
+
+/// 同期初期化の RFCOMM サービス UUID
 static UUID_BLUENOTE_RFCOMM_INIT: &str = "c144d029-2a62-4cfc-b39c-ca6ce173cb3f";
 
 static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
@@ -190,6 +199,259 @@ pub fn set_on_uuid_exchanged(callback: JsFunction) -> napi::Result<()> {
 #[napi(ts_return_type = "Promise<string[]>")]
 pub fn enumerate_sync_companions() -> AsyncTask<EnumerateSyncCompanionsTask> {
     AsyncTask::new(EnumerateSyncCompanionsTask {})
+}
+
+/// 同期サーバを起動する
+#[napi(ts_return_type = "Promise<void>")]
+pub fn start_sync_server() -> AsyncTask<SyncServerStartTask> {
+    AsyncTask::new(SyncServerStartTask {})
+}
+
+pub struct SyncServerStartTask {}
+
+impl Task for SyncServerStartTask {
+    type Output = ();
+    type JsValue = JsUndefined;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        RUNTIME.block_on(crate::sync::server::start())?;
+        Ok(())
+    }
+
+    fn resolve(&mut self, env: Env, _: Self::Output) -> napi::Result<Self::JsValue> {
+        env.get_undefined()
+    }
+}
+
+/// 同期サーバを停止する
+#[napi]
+pub fn stop_sync_server() -> Result<()> {
+    crate::sync::server::stop()
+}
+
+/// 同期がリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, uuid: string) => void")]
+pub fn set_on_sync_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamSyncPermission>| {
+            vec![ctx.value.uuid]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_sync_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 同期リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_sync_request(allow: bool) {
+    crate::sync::server::SYNC_SERVICE
+        .on_sync_requested
+        .send_result(allow);
+}
+
+/// 現在時刻がリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error) => void")]
+pub fn set_on_now_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(0, |ctx: ThreadSafeCallContext<()>| {
+        Ok::<Vec<()>, napi::Error>(vec![])
+    })?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_now_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 現在時刻リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_now_request(now: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_now_requested
+        .send_result(now);
+}
+
+/// スレッドの更新差分がリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, uuid: string, updatedEnd: string) => void")]
+pub fn set_on_thread_updates_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamThreadUpdates>| {
+            vec![ctx.value.uuid, ctx.value.updated_end]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    let mut callback = crate::sync::server::SYNC_SERVICE
+        .on_thread_updates_requested
+        .func
+        .lock()
+        .unwrap();
+    *callback = Some(tsfn);
+
+    Ok(())
+}
+
+/// スレッド更新差分リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_thread_updates_request(json: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_thread_updates_requested
+        .send_result(json);
+}
+
+/// 指定スレッド内のメモの内容の送信をリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, threadId: string) => void")]
+pub fn set_on_all_notes_in_thread_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamAllNotesInThread>| {
+            vec![ctx.value.thread_id]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_all_notes_in_thread_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 指定スレッド内のメモの内容の送信リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_all_notes_in_thread_request(json: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_all_notes_in_thread_requested
+        .send_result(json);
+}
+
+/// 指定ツリー内のメモの内容の送信をリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, parentId: string) => void")]
+pub fn set_on_all_notes_in_tree_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamAllNotesInTree>| {
+            vec![ctx.value.parent_id]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_all_notes_in_tree_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 指定ツリー内のメモの内容の送信リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_all_notes_in_tree_request(json: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_all_notes_in_tree_requested
+        .send_result(json);
+}
+
+/// 指定スレッド内のメモの更新差分の送信をリクエストされたときのコールバックを設定する
+#[napi(
+    ts_args_type = "callback: (err: null | Error, uuid: string, threadId: string, updatedEnd: String) => void"
+)]
+pub fn set_on_note_updates_in_thread_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamNoteUpdatesInThread>| {
+            vec![ctx.value.uuid, ctx.value.thread_id, ctx.value.updated_end]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_note_updates_in_thread_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 指定スレッド内のメモの更新差分の送信リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_note_updates_in_thread_request(json: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_note_updates_in_thread_requested
+        .send_result(json);
+}
+
+/// 指定ツリー内のメモの更新差分の送信をリクエストされたときのコールバックを設定する
+#[napi(
+    ts_args_type = "callback: (err: null | Error, uuid: string, parentId: string, updatedEnd: String) => void"
+)]
+pub fn set_on_note_updates_in_tree_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamNoteUpdatesInTree>| {
+            vec![ctx.value.uuid, ctx.value.parent_id, ctx.value.updated_end]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_note_updates_in_tree_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 指定ツリー内のメモの更新差分の送信リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_note_updates_in_tree_request(json: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_note_updates_in_tree_requested
+        .send_result(json);
+}
+
+/// 同期時刻の保存をリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, uuid: string, updatedEnd: String) => void")]
+pub fn set_on_update_synced_at_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamUpdateSyncedAt>| {
+            vec![ctx.value.uuid, ctx.value.updated_end]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_update_synced_at_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 同期時刻の保存リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_update_synced_at_request() {
+    crate::sync::server::SYNC_SERVICE
+        .on_update_synced_at_requested
+        .send_result(());
 }
 
 pub struct SyncRequestListenerStartTask {
