@@ -4,7 +4,6 @@ mod scanner;
 mod sync;
 
 use init::client::RequestParamPairing;
-use init::server::InitServer;
 use napi::threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction};
 use napi::{bindgen_prelude::*, JsString, JsUndefined};
 use napi_derive::napi;
@@ -32,8 +31,6 @@ static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
         .build()
         .unwrap()
 });
-
-static INIT_SERVER: InitServer = InitServer::new();
 
 static BLUETOOTH_SCANNER: crate::scanner::BluetoothScanner =
     crate::scanner::BluetoothScanner::new();
@@ -142,17 +139,15 @@ pub fn set_on_bluetooth_device_found(callback: JsFunction) -> napi::Result<()> {
 
 /// 同期設定の受付を開始する
 #[napi]
-pub fn start_init_server(my_uuid: String) -> AsyncTask<SyncRequestListenerStartTask> {
-    AsyncTask::new(SyncRequestListenerStartTask { my_uuid })
+pub fn start_init_server(my_uuid: String) -> AsyncTask<InitServerStartTask> {
+    AsyncTask::new(InitServerStartTask { my_uuid })
 }
 
 /// 同期設定の受付を停止する
 #[napi]
 pub fn stop_init_server() -> napi::Result<()> {
-    match INIT_SERVER.stop() {
-        Ok(_) => Ok(()),
-        Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
-    }
+    crate::init::server::stop()?;
+    Ok(())
 }
 
 /// 同期受付の状態が変化したときのコールバックを設定する
@@ -165,7 +160,7 @@ pub fn set_on_init_server_state_changed(callback: JsFunction) -> napi::Result<()
             .collect()
     })?;
 
-    let mut callback = INIT_SERVER.on_state_changed.lock().unwrap();
+    let mut callback = crate::init::server::ON_STATE_CHANGED.lock().unwrap();
     *callback = Some(tsfn);
 
     Ok(())
@@ -187,7 +182,7 @@ pub fn set_on_uuid_exchanged(callback: JsFunction) -> napi::Result<()> {
         },
     )?;
 
-    let mut callback = INIT_SERVER.on_uuid_exchanged.lock().unwrap();
+    let mut callback = crate::init::server::ON_UUID_EXCHANGED.lock().unwrap();
 
     *callback = Some(tsfn);
 
@@ -453,25 +448,17 @@ pub fn respond_to_update_synced_at_request() {
         .send_result(());
 }
 
-pub struct SyncRequestListenerStartTask {
+pub struct InitServerStartTask {
     my_uuid: String,
 }
 
-impl Task for SyncRequestListenerStartTask {
+impl Task for InitServerStartTask {
     type Output = ();
     type JsValue = JsUndefined;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        let future = INIT_SERVER.start(self.my_uuid.to_owned());
-
-        match rt.block_on(future) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
-        }
+        RUNTIME.block_on(crate::init::server::start(self.my_uuid.to_owned()))?;
+        Ok(())
     }
 
     fn resolve(&mut self, env: Env, _: Self::Output) -> napi::Result<Self::JsValue> {
