@@ -4,7 +4,6 @@ export type Thread = {
   displayMode: 'monologue' | 'scrap'
   createdAt: Date
   removed: boolean
-  removedAt: Date
   updatedById: string
   updatedAt: Date
 }

@@ -6,7 +6,6 @@ CREATE TABLE "Thread" (
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     "removed" BOOLEAN NOT NULL,
-    "removedAt" DATETIME NOT NULL,
     "updatedById" TEXT NOT NULL,
     CONSTRAINT "Thread_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "Device" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
@@ -27,7 +26,6 @@ CREATE TABLE "Note" (
     "threadId" TEXT NOT NULL,
     "parentId" TEXT,
     "removed" BOOLEAN NOT NULL,
-    "removedAt" DATETIME NOT NULL,
     CONSTRAINT "Note_editorId_fkey" FOREIGN KEY ("editorId") REFERENCES "Device" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "Note_threadId_fkey" FOREIGN KEY ("threadId") REFERENCES "Thread" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Note_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Note" ("id") ON DELETE CASCADE ON UPDATE CASCADE

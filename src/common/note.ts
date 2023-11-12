@@ -7,5 +7,4 @@ export type Note = {
   threadId: string
   parentId: string | null
   removed: boolean
-  removedAt: Date
 }

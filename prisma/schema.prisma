@@ -17,7 +17,6 @@ model Thread {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   removed     Boolean
-  removedAt   DateTime
   updatedBy   Device   @relation(fields: [updatedById], references: [id])
   updatedById String
   notes       Note[]
@@ -41,7 +40,6 @@ model Note {
   parentId  String?
   notes     Note[]   @relation("Tree")
   removed   Boolean
-  removedAt DateTime
 }
 
 model DeletedNote {
