@@ -1,7 +1,7 @@
 use napi::{bindgen_prelude::AsyncTask, Env, JsString, JsUndefined, Task};
 use napi_derive::napi;
 use windows::{
-    core::{GUID, HRESULT, HSTRING},
+    core::{GUID, HSTRING},
     Devices::{
         Bluetooth::{BluetoothCacheMode, BluetoothDevice, Rfcomm::RfcommServiceId},
         Enumeration::DeviceInformation,
@@ -10,7 +10,7 @@ use windows::{
     Storage::Streams::{ByteOrder, DataReader, DataWriter},
 };
 
-use crate::{RUNTIME, UUID_BLUENOTE_RFCOMM};
+use crate::{error::Error, Result, RUNTIME, UUID_BLUENOTE_RFCOMM};
 
 use super::{PROTOCOL_VERSION, SYNC_ALLOWED, SYNC_FAILED, SYNC_SUCCESS};
 
@@ -43,11 +43,8 @@ pub async fn enumerate_sync_companions() -> windows::core::Result<Vec<String>> {
     Ok(device_ids)
 }
 
-fn abort_error(message: &str) -> windows::core::Error {
-    windows::core::Error::new(HRESULT(0x80004004u32 as i32), HSTRING::from(message))
-}
-
 struct SyncClientState {
+    #[allow(dead_code)] // インスタンスを持っておいて、socket が drop して接続が切れないようにする
     socket: StreamSocket,
     reader: DataReader,
     writer: DataWriter,
@@ -60,8 +57,10 @@ pub struct SyncClient {
     companion_device_id: String,
 }
 
+/// 同期クライアント
 #[napi]
 impl SyncClient {
+    /// `SyncClient` のインスタンスを生成する
     #[napi(factory)]
     pub fn create_instance(my_uuid: String, companion_device_id: String) -> Self {
         Self {
@@ -72,7 +71,7 @@ impl SyncClient {
     }
 
     /// 同期サーバに接続し、その接続の StreamSocket を返す
-    async fn connect(companion_device_id: &str) -> windows::core::Result<StreamSocket> {
+    async fn connect(companion_device_id: &str) -> Result<StreamSocket> {
         let device = BluetoothDevice::FromIdAsync(&HSTRING::from(companion_device_id))?.await?;
         let service_id = RfcommServiceId::FromUuid(GUID::from(UUID_BLUENOTE_RFCOMM))?;
         let rfcomm_services = device
@@ -81,7 +80,9 @@ impl SyncClient {
             .Services()?;
 
         if rfcomm_services.Size()? == 0 {
-            return Err(abort_error("The device seems not to have Bluenote App"));
+            return Err(Error::SyncError(format!(
+                "The device seems not to have Bluenote App"
+            )));
         }
 
         println!("Connecting...");
@@ -93,7 +94,7 @@ impl SyncClient {
             .ConnectWithProtectionLevelAsync(
                 &service.ConnectionHostName()?,
                 &service.ConnectionServiceName()?,
-                SocketProtectionLevel::PlainSocket,
+                SocketProtectionLevel::BluetoothEncryptionWithAuthentication,
             )?
             .await?;
 
@@ -102,7 +103,7 @@ impl SyncClient {
         Ok(socket)
     }
 
-    async fn begin_sync_impl(&mut self) -> windows::core::Result<()> {
+    async fn begin_sync_impl(&mut self) -> Result<()> {
         let socket = Self::connect(&self.companion_device_id).await?;
 
         let reader = DataReader::CreateDataReader(&socket.InputStream()?)?;
@@ -120,8 +121,7 @@ impl SyncClient {
         writer.FlushAsync()?.await?;
 
         if version != PROTOCOL_VERSION {
-            // todo: 自作の Error 型を使いたい
-            return Err(abort_error(&format!(
+            return Err(Error::SyncError(format!(
                 "The companion uses different protocol: {}",
                 version
             )));
@@ -138,7 +138,7 @@ impl SyncClient {
 
         if response != SYNC_ALLOWED {
             // todo: 自作の Error 型を使いたい
-            return Err(abort_error("Sync not allowed"));
+            return Err(Error::SyncError(format!("Sync not allowed")));
         }
 
         self.state = Some(SyncClientState {
@@ -156,11 +156,7 @@ impl SyncClient {
         AsyncTask::new(BeginSyncTask { client: self })
     }
 
-    async fn request_data_impl(
-        &self,
-        request_id: u8,
-        uuid: &Option<String>,
-    ) -> windows::core::Result<String> {
+    async fn request_data_impl(&self, request_id: u8, uuid: &Option<String>) -> Result<String> {
         match &self.state {
             Some(state) => {
                 // 1. リクエスト ID の送信
@@ -185,10 +181,10 @@ impl SyncClient {
 
                 match String::from_utf8(buffer) {
                     Ok(v) => Ok(v),
-                    Err(e) => Err(abort_error(&format!("{}", e))),
+                    Err(e) => Err(Error::SyncError(format!("{}", e))),
                 }
             }
-            None => Err(abort_error("Not connected.")),
+            None => Err(Error::SyncError(format!("Not connected."))),
         }
     }
 
@@ -203,7 +199,7 @@ impl SyncClient {
         })
     }
 
-    async fn end_sync_impl(&mut self, success: bool) -> windows::core::Result<()> {
+    async fn end_sync_impl(&mut self, success: bool) -> Result<()> {
         match self.state.take() {
             Some(state) => {
                 // 同期の成功 or 失敗を送信
@@ -223,7 +219,7 @@ impl SyncClient {
                         // 相手側が DB の保存に失敗した
                         // 同期時刻の保存に失敗した=次回の同期に少し無駄が生じる
                         // まああまり問題ではない
-                        _ => Err(abort_error(&format!(
+                        _ => Err(Error::SyncError(format!(
                             "The sync companion responded an error: {}",
                             ack
                         ))),
@@ -256,10 +252,7 @@ impl<'a> Task for BeginSyncTask<'a> {
     type JsValue = JsUndefined;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        match RUNTIME.block_on(self.client.begin_sync_impl()) {
-            Ok(v) => Ok(v),
-            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
-        }
+        Ok(RUNTIME.block_on(self.client.begin_sync_impl())?)
     }
 
     fn resolve(&mut self, env: Env, _: Self::Output) -> napi::Result<Self::JsValue> {
@@ -278,10 +271,7 @@ impl<'a> Task for RequestDataTask<'a> {
     type JsValue = JsString;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        match RUNTIME.block_on(self.client.request_data_impl(self.request_id, &self.uuid)) {
-            Ok(v) => Ok(v),
-            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
-        }
+        Ok(RUNTIME.block_on(self.client.request_data_impl(self.request_id, &self.uuid))?)
     }
 
     fn resolve(&mut self, env: Env, json: Self::Output) -> napi::Result<Self::JsValue> {
@@ -299,10 +289,7 @@ impl<'a> Task for EndSyncTask<'a> {
     type JsValue = JsUndefined;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        match RUNTIME.block_on(self.client.end_sync_impl(self.success)) {
-            Ok(v) => Ok(v),
-            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
-        }
+        Ok(RUNTIME.block_on(self.client.end_sync_impl(self.success))?)
     }
 
     fn resolve(&mut self, env: Env, _: Self::Output) -> napi::Result<Self::JsValue> {
