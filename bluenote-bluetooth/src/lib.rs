@@ -3,6 +3,7 @@ mod init;
 mod scanner;
 mod sync;
 
+use init::client::RequestParamPairing;
 use init::server::InitServer;
 use napi::threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction};
 use napi::{bindgen_prelude::*, JsString, JsUndefined};
@@ -32,11 +33,6 @@ static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
         .unwrap()
 });
 
-static INIT_CLIENT: crate::init::client::InitClient = crate::init::client::InitClient {
-    accept_sender: Mutex::new(None),
-    on_pairing_requested: Mutex::new(None),
-};
-
 static INIT_SERVER: InitServer = InitServer::new();
 
 static BLUETOOTH_SCANNER: crate::scanner::BluetoothScanner =
@@ -59,15 +55,15 @@ pub fn init_client(windows_device_id: String, my_uuid: String) -> AsyncTask<Init
 pub fn set_on_bond_requested(callback: JsFunction) -> napi::Result<()> {
     let tsfn = callback.create_threadsafe_function(
         0,
-        |ctx: ThreadSafeCallContext<(String, String)>| {
-            vec![ctx.value.0, ctx.value.1]
+        |ctx: ThreadSafeCallContext<RequestParamPairing>| {
+            vec![ctx.value.device_name, ctx.value.pin]
                 .iter()
                 .map(|x| ctx.env.create_string(&x))
                 .collect()
         },
     )?;
 
-    let mut callback = INIT_CLIENT.on_pairing_requested.lock().unwrap();
+    let mut callback = crate::init::client::ON_PAIRING_REQUESTED.lock().unwrap();
     *callback = Some(tsfn);
 
     Ok(())
@@ -75,15 +71,18 @@ pub fn set_on_bond_requested(callback: JsFunction) -> napi::Result<()> {
 
 /// ペアリングリクエストに対する応答を返す
 #[napi]
-pub fn respond_to_bond_request(accept: bool) {
-    let mut tx = INIT_CLIENT.accept_sender.lock().unwrap();
+pub fn respond_to_bond_request(accept: bool) -> Result<()> {
+    let mut tx = crate::init::client::ACCEPT_SENDER.lock().unwrap();
 
     if let Some(tx) = tx.take() {
         if let Err(_) = tx.send(accept) {
-            // 例外出すのはなんか違う気がするんだよなー
-            println!("Warning: failed to send pairing response. May be already timed out?")
+            return Err(error::Error::SyncError(format!(
+                "Warning: failed to send pairing response. May be already timed out?"
+            )));
         }
     }
+
+    Ok(())
 }
 
 /// デバイスのスキャンを開始する
@@ -490,12 +489,8 @@ impl Task for InitClientTask {
     type JsValue = JsString;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        let future = INIT_CLIENT.init(&self.windows_device_id, &self.my_uuid);
-
-        match RUNTIME.block_on(future) {
-            Ok(v) => Ok(v),
-            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
-        }
+        let future = crate::init::client::init(&self.windows_device_id, &self.my_uuid);
+        Ok(RUNTIME.block_on(future)?)
     }
 
     fn resolve(&mut self, env: Env, uuid: Self::Output) -> napi::Result<Self::JsValue> {

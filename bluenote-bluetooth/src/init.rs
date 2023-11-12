@@ -2,13 +2,9 @@ pub mod client;
 pub mod server;
 
 use windows::{
-    core::{HRESULT, HSTRING},
+    core::HSTRING,
     Storage::Streams::{ByteOrder, DataReader, DataWriter, IInputStream, IOutputStream},
 };
-
-fn abort_error(message: &str) -> windows::core::Error {
-    windows::core::Error::new(HRESULT(0x80004004u32 as i32), HSTRING::from(message))
-}
 
 async fn exchange_uuid(
     my_uuid: &str,
