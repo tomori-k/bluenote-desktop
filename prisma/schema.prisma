@@ -10,49 +10,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Thread {
-  id          String   @id
+model Device {
+  id          String   @id @default(uuid())
   name        String
-  displayMode String // "monologue" or "scrap"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  removed     Boolean
-  updatedBy   Device   @relation(fields: [updatedById], references: [id])
-  updatedById String
-  notes       Note[]
+  me          Boolean
+  syncedAt    DateTime @map("synced_at")
+  syncEnabled Boolean  @map("sync_enabled")
+
+  @@map("device")
 }
 
-model DeletedThread {
-  id        String   @id
-  deletedAt DateTime
+model Thread {
+  id          String   @id @default(uuid())
+  name        String
+  displayMode String   @map("display_mode") // "monologue" or "scrap"
+  trash       Boolean
+  deleted     Boolean
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  modifiedAt  DateTime @map("modified_at")
+  notes       Note[]
+
+  @@map("thread")
 }
 
 model Note {
-  id        String   @id // バイト配列にしたいよね -> まあ文字列でもええか！
-  content   String
-  editor    Device   @relation(fields: [editorId], references: [id])
-  editorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  threadId  String
-  parent    Note?    @relation("Tree", fields: [parentId], references: [id], onDelete: Cascade)
-  parentId  String?
-  notes     Note[]   @relation("Tree")
-  removed   Boolean
-}
+  id         String   @id @default(uuid())
+  content    String
+  thread     Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId   String   @map("thread_id")
+  parent     Note?    @relation("Tree", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId   String?  @map("parent_id")
+  trash      Boolean
+  deleted    Boolean
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  modifiedAt DateTime @map("modified_at")
+  notes      Note[]   @relation("Tree")
 
-model DeletedNote {
-  id        String   @id
-  deletedAt DateTime
-}
-
-model Device {
-  id          String   @id
-  name        String
-  me          Boolean
-  syncedAt    DateTime
-  syncEnabled Boolean
-  Note        Note[]
-  Thread      Thread[]
+  @@map("note")
 }

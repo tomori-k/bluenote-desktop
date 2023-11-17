@@ -1,10 +1,11 @@
 export type Note = {
   id: string
   content: string
-  editorId: string
-  createdAt: Date
-  updatedAt: Date
   threadId: string
   parentId: string | null
-  removed: boolean
+  trash: boolean
+  deleted: boolean
+  createdAt: Date
+  updatedAt: Date
+  modifiedAt: Date
 }

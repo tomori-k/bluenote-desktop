@@ -1,9 +1,10 @@
 export type Thread = {
   id: string
   name: string
-  displayMode: 'monologue' | 'scrap'
+  displayMode: string // monologue or scrap
+  trash: boolean
+  deleted: boolean
   createdAt: Date
-  removed: boolean
-  updatedById: string
   updatedAt: Date
+  modifiedAt: Date
 }
