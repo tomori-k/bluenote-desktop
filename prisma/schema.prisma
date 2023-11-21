@@ -26,8 +26,8 @@ model Thread {
   displayMode String   @map("display_mode") // "monologue" or "scrap"
   trash       Boolean
   deleted     Boolean
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime @map("created_at")
+  updatedAt   DateTime @map("updated_at")
   modifiedAt  DateTime @map("modified_at")
   notes       Note[]
 
@@ -43,8 +43,8 @@ model Note {
   parentId   String?  @map("parent_id")
   trash      Boolean
   deleted    Boolean
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdAt  DateTime @map("created_at")
+  updatedAt  DateTime @map("updated_at")
   modifiedAt DateTime @map("modified_at")
   notes      Note[]   @relation("Tree")
 

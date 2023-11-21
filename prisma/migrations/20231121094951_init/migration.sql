@@ -14,7 +14,7 @@ CREATE TABLE "thread" (
     "display_mode" TEXT NOT NULL,
     "trash" BOOLEAN NOT NULL,
     "deleted" BOOLEAN NOT NULL,
-    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" DATETIME NOT NULL,
     "updated_at" DATETIME NOT NULL,
     "modified_at" DATETIME NOT NULL
 );
@@ -27,7 +27,7 @@ CREATE TABLE "note" (
     "parent_id" TEXT,
     "trash" BOOLEAN NOT NULL,
     "deleted" BOOLEAN NOT NULL,
-    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" DATETIME NOT NULL,
     "updated_at" DATETIME NOT NULL,
     "modified_at" DATETIME NOT NULL,
     CONSTRAINT "note_thread_id_fkey" FOREIGN KEY ("thread_id") REFERENCES "thread" ("id") ON DELETE CASCADE ON UPDATE CASCADE,

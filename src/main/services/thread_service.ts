@@ -12,11 +12,36 @@ export class ThreadService {
    * すべてのスレッドを取得する
    */
   public async getAllThreads(): Promise<Thread[]> {
-    throw new Error()
+    return await this.prisma.thread.findMany({
+      where: {
+        trash: false,
+        deleted: false,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
   }
 
+  /**
+   * スレッドを取得する
+   * @param id スレッドの ID (UUID)
+   */
   public async get(id: string): Promise<Thread> {
     return await this.prisma.thread.findUniqueOrThrow({ where: { id: id } })
+  }
+
+  /**
+   * スレッドが削除されていないことを確認する
+   */
+  private async checkRemovedState(thread: Thread): Promise<Thread> {
+    thread = await this.get(thread.id)
+
+    if (thread.trash || thread.deleted) {
+      throw new Error('thread is now removed to trash or deleted')
+    }
+
+    return thread
   }
 
   /**
@@ -24,7 +49,19 @@ export class ThreadService {
    * @param name スレッド名
    */
   public async create(name: string): Promise<Thread> {
-    throw new Error()
+    const timestamp = new Date()
+
+    return await this.prisma.thread.create({
+      data: {
+        name: name,
+        displayMode: 'monologue',
+        trash: false,
+        deleted: false,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        modifiedAt: timestamp,
+      },
+    })
   }
 
   /**
@@ -33,7 +70,20 @@ export class ThreadService {
    * @param name 新しいスレッド名
    */
   public async rename(thread: Thread, name: string): Promise<Thread> {
-    throw new Error()
+    thread = await this.checkRemovedState(thread)
+
+    const timestamp = new Date()
+
+    return await this.prisma.thread.update({
+      where: {
+        id: thread.id,
+      },
+      data: {
+        name: name,
+        updatedAt: timestamp,
+        modifiedAt: timestamp,
+      },
+    })
   }
 
   /**
@@ -45,7 +95,20 @@ export class ThreadService {
     thread: Thread,
     displayMode: 'monologue' | 'scrap'
   ): Promise<Thread> {
-    throw new Error()
+    thread = await this.checkRemovedState(thread)
+
+    const timestamp = new Date()
+
+    return await this.prisma.thread.update({
+      where: {
+        id: thread.id,
+      },
+      data: {
+        displayMode: displayMode,
+        updatedAt: timestamp,
+        modifiedAt: timestamp,
+      },
+    })
   }
 
   /**
@@ -53,7 +116,36 @@ export class ThreadService {
    * @param thread ごみ箱に移動させるスレッド
    */
   public async remove(thread: Thread): Promise<void> {
-    throw new Error()
+    thread = await this.checkRemovedState(thread)
+
+    const timestamp = new Date()
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.thread.update({
+        where: {
+          id: thread.id,
+        },
+        data: {
+          trash: true,
+          updatedAt: timestamp,
+          modifiedAt: timestamp,
+        },
+      })
+
+      // このスレッドに属する !trash && !deleted なメモをごみ箱に移動
+      await tx.note.updateMany({
+        where: {
+          threadId: thread.id,
+          trash: false,
+          deleted: false,
+        },
+        data: {
+          trash: true,
+          updatedAt: timestamp,
+          modifiedAt: timestamp,
+        },
+      })
+    })
   }
 
   /**
@@ -61,6 +153,37 @@ export class ThreadService {
    * @param thread 削除するスレッド
    */
   public async deleteThread(thread: Thread): Promise<void> {
-    throw new Error()
+    thread = await this.get(thread.id)
+
+    if (thread.deleted) {
+      throw new Error('thread already deleted')
+    }
+
+    if (!thread.trash) {
+      throw new Error('must remove it to trash before delete')
+    }
+
+    const timestamp = new Date()
+
+    await this.prisma.$transaction(async (tx) => {
+      // 削除されたとしてマークする
+      await tx.thread.update({
+        where: {
+          id: thread.id,
+        },
+        data: {
+          deleted: true,
+          updatedAt: timestamp,
+          modifiedAt: timestamp,
+        },
+      })
+
+      // このスレッドのメモをすべてDBから削除
+      await tx.note.deleteMany({
+        where: {
+          threadId: thread.id,
+        },
+      })
+    })
   }
 }
