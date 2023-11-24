@@ -18,7 +18,25 @@ export function testPrisma(
     async () => {
       try {
         await prisma.$transaction(async (tx: PrismaClient) => {
-          await testFn(tx)
+          await testFn(
+            // tx に transaction のダミーを入れておく
+            // トランザクションのテストはできないが...。
+
+            new Proxy(tx, {
+              get(target, p, receiver) {
+                if (p === '$transaction')
+                  return async function (
+                    fn: (tx: PrismaClient) => Promise<void>
+                  ) {
+                    await fn(tx)
+                  }
+                else {
+                  return Reflect.get(target, p, receiver)
+                }
+              },
+            })
+          )
+
           throw new RollbackError()
         })
       } catch (e) {
