@@ -48,3 +48,12 @@ export function testPrisma(
     timeout
   )
 }
+
+/**
+ * 日付が指定した日時以降であるかをテスト
+ * @param actual チェック対象の日時
+ * @param value 基準
+ */
+export function assertDateGreaterThanOrEqual(actual: Date, value: Date) {
+  expect(actual.getTime()).toBeGreaterThanOrEqual(value.getTime())
+}

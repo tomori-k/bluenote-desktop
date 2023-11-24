@@ -1,14 +1,5 @@
 import { ThreadService } from '../../src/main/services/thread_service'
-import { testPrisma } from './helper'
-
-/**
- * 日付が指定した日時以降であるかをテスト
- * @param actual チェック対象の日時
- * @param value 基準
- */
-function assertDateGreaterThanOrEqual(actual: Date, value: Date) {
-  expect(actual.getTime()).toBeGreaterThanOrEqual(value.getTime())
-}
+import { testPrisma, assertDateGreaterThanOrEqual } from './helper'
 
 describe('getAllThreads', () => {
   testPrisma('ok', async (prisma) => {

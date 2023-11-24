@@ -109,10 +109,14 @@ export class NoteService {
           threadId: threadId,
           parentId: parentId,
         },
-        orderBy: {
-          createdAt: 'asc',
-          id: 'asc',
-        },
+        orderBy: [
+          {
+            createdAt: 'asc',
+          },
+          {
+            id: 'asc',
+          },
+        ],
         take: count,
       })
     }
@@ -129,7 +133,7 @@ export class NoteService {
                 select: { createdAt: true },
               })
             ).createdAt
-          : new Date(9007199254740991)
+          : new Date('9999-12-31T23:59:59Z')
 
       return await this.prisma.note.findMany({
         where: {
@@ -154,10 +158,15 @@ export class NoteService {
           threadId: threadId,
           parentId: parentId,
         },
-        orderBy: {
-          createdAt: 'desc',
-          id: 'asc',
-        },
+        orderBy: [
+          {
+            createdAt: 'desc',
+          },
+          {
+            id: 'asc',
+          },
+        ],
+
         take: count,
       })
     }
