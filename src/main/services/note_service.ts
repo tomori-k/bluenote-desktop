@@ -42,7 +42,7 @@ export class NoteService {
    * メモが存在し、削除されていないことを確認する
    * @param note メモ
    */
-  private async ensureNoteExists(note: Note): Promise<void> {
+  private async ensureNoteExists(note: Note): Promise<Note> {
     note = await this.get(note.id)
 
     if (note.trash || note.deleted) {
@@ -50,6 +50,7 @@ export class NoteService {
     }
 
     // OK
+    return note
   }
 
   /**
@@ -288,7 +289,11 @@ export class NoteService {
    * @param parentNote 親のメモ
    */
   public async createInTree(content: string, parentNote: Note): Promise<Note> {
-    await this.ensureNoteExists(parentNote)
+    parentNote = await this.ensureNoteExists(parentNote)
+
+    if (parentNote.parentId != null) {
+      throw new Error('nested tree is prohibited')
+    }
 
     const timestamp = new Date()
     let created: Note | null = null

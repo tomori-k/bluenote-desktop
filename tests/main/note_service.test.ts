@@ -1,6 +1,6 @@
-import { testPrisma } from './helper'
+import { assertDateGreaterThanOrEqual, testPrisma } from './helper'
 import { NoteService } from '../../src/main/services/note_service'
-import { Prisma, PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 
 describe('get', () => {
   testPrisma('ok', async (prisma) => {
@@ -2046,5 +2046,401 @@ describe('findInTrash', () => {
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
       },
     ])
+  })
+})
+
+describe('createInThread', () => {
+  testPrisma('ok', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+    const timestamp = new Date()
+
+    const created = await noteService.createInThread('あいうえお', {
+      id: 'a',
+      name: '',
+      displayMode: 'monologue',
+      trash: false,
+      deleted: false,
+      createdAt: new Date('2023-11-22T10:54:49Z'),
+      updatedAt: new Date('2023-11-22T10:54:49Z'),
+      modifiedAt: new Date('2023-11-22T10:54:49Z'),
+    })
+    const dataInDb = await prisma.note.findUniqueOrThrow({
+      where: { id: created.id },
+    })
+
+    expect(created).toStrictEqual(dataInDb)
+    expect(created.id).toMatch(/^[A-z0-9]{8}(-[A-z0-9]{4}){3}-[A-z0-9]{12}$/)
+    expect(created.content).toBe('あいうえお')
+    expect(created.threadId).toBe('a')
+    expect(created.parentId).toBe(null)
+    expect(created.trash).toBe(false)
+    expect(created.deleted).toBe(false)
+    assertDateGreaterThanOrEqual(created.createdAt, timestamp)
+    assertDateGreaterThanOrEqual(created.updatedAt, timestamp)
+    assertDateGreaterThanOrEqual(created.modifiedAt, timestamp)
+  })
+
+  testPrisma('thread not exist', async (prisma) => {
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.createInThread('あいうえお', {
+        id: 'a',
+        name: '',
+        displayMode: 'monologue',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-11-22T10:54:49Z'),
+        updatedAt: new Date('2023-11-22T10:54:49Z'),
+        modifiedAt: new Date('2023-11-22T10:54:49Z'),
+      })
+    ).rejects.toThrow(Error)
+  })
+
+  testPrisma('thread deleted', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: true,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.createInThread('あいうえお', {
+        id: 'a',
+        name: '',
+        displayMode: 'monologue',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-11-22T10:54:49Z'),
+        updatedAt: new Date('2023-11-22T10:54:49Z'),
+        modifiedAt: new Date('2023-11-22T10:54:49Z'),
+      })
+    ).rejects.toThrow(Error)
+  })
+
+  testPrisma('thread removed', async (prisma) => {
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.createInThread('あいうえお', {
+        id: 'a',
+        name: '',
+        displayMode: 'monologue',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-11-22T10:54:49Z'),
+        updatedAt: new Date('2023-11-22T10:54:49Z'),
+        modifiedAt: new Date('2023-11-22T10:54:49Z'),
+      })
+    ).rejects.toThrow(Error)
+  })
+
+  testPrisma('thread deleted', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: true,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.createInThread('あいうえお', {
+        id: 'a',
+        name: '',
+        displayMode: 'monologue',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-11-22T10:54:49Z'),
+        updatedAt: new Date('2023-11-22T10:54:49Z'),
+        modifiedAt: new Date('2023-11-22T10:54:49Z'),
+      })
+    ).rejects.toThrow(Error)
+  })
+})
+
+describe('createInTree', () => {
+  testPrisma('ok', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: 'あいうえお',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+    const timestamp = new Date()
+
+    const created = await noteService.createInTree('あいうえお', {
+      id: 'a_a',
+      content: 'あいうえお',
+      threadId: 'a',
+      parentId: null,
+      trash: false,
+      deleted: false,
+      createdAt: new Date('3000-01-01T00:00:00Z'),
+      updatedAt: new Date('3000-01-01T00:00:00Z'),
+      modifiedAt: new Date('3000-01-01T00:00:00Z'),
+    })
+    const dataInDb = await prisma.note.findUniqueOrThrow({
+      where: { id: created.id },
+    })
+
+    expect(created).toStrictEqual(dataInDb)
+    expect(created.id).toMatch(/^[A-z0-9]{8}(-[A-z0-9]{4}){3}-[A-z0-9]{12}$/)
+    expect(created.content).toBe('あいうえお')
+    expect(created.threadId).toBe('a')
+    expect(created.parentId).toBe('a_a')
+    expect(created.trash).toBe(false)
+    expect(created.deleted).toBe(false)
+    assertDateGreaterThanOrEqual(created.createdAt, timestamp)
+    assertDateGreaterThanOrEqual(created.updatedAt, timestamp)
+    assertDateGreaterThanOrEqual(created.modifiedAt, timestamp)
+  })
+
+  testPrisma('parent not exist', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.createInTree('あいうえお', {
+        id: 'a_a',
+        content: 'あいうえお',
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      })
+    ).rejects.toThrow(Error)
+  })
+
+  testPrisma('parent deleted', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: 'あいうえお',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: true,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.createInTree('あいうえお', {
+        id: 'a_a',
+        content: 'あいうえお',
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      })
+    ).rejects.toThrow(Error)
+  })
+
+  testPrisma('parent removed', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: 'あいうえお',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.createInTree('あいうえお', {
+        id: 'a_a',
+        content: 'あいうえお',
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      })
+    ).rejects.toThrow(Error)
+  })
+
+  testPrisma('prohibit nested tree', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: 'あいうえお',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_a_a',
+          content: 'あいうえお',
+          threadId: 'a',
+          parentId: 'a_a',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.createInTree('あいうえお', {
+        id: 'a_a_a',
+        content: 'あいうえお',
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      })
+    ).rejects.toThrow(Error)
   })
 })
