@@ -13,10 +13,37 @@ export class SyncService {
    * 指定したスレッドのメモをすべて取得する
    * ごみ箱やツリーのメモも取得される
    * 完全に削除されたメモ (deleted = 1) は含まない
+   * 並びは、スレッド直下のメモのほうが先になり、その中で作成日時昇順になる
+   *
    * @param threadId スレッドの ID (UUID)
    */
   public async getAllNotesInThread(threadId: string): Promise<Note[]> {
-    throw new Error()
+    const notes = await this.prisma.$queryRaw<
+      // 自動生成された型があるならそっちに置き換えたいが、ぱっと調べた感じ見つからなかった
+      {
+        id: string
+        content: string
+        thread_id: string
+        parent_id: string | null
+        trash: boolean
+        deleted: boolean
+        created_at: Date
+        updated_at: Date
+        modified_at: Date
+      }[]
+    >`SELECT * FROM note WHERE deleted = 0 AND thread_id = ${threadId} ORDER BY (parent_id IS NULL) DESC, created_at ASC`
+
+    return notes.map((x) => ({
+      id: x.id,
+      content: x.content,
+      threadId: x.thread_id,
+      parentId: x.parent_id,
+      trash: x.trash,
+      deleted: x.deleted,
+      createdAt: x.created_at,
+      updatedAt: x.updated_at,
+      modifiedAt: x.modified_at,
+    }))
   }
 
   /**
@@ -26,7 +53,15 @@ export class SyncService {
    * @param parentId 親のメモの ID (UUID)
    */
   public async getAllNotesInTree(parentId: string): Promise<Note[]> {
-    throw new Error()
+    return await this.prisma.note.findMany({
+      where: {
+        deleted: false,
+        parentId: parentId,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
   }
 
   /**
@@ -35,7 +70,25 @@ export class SyncService {
    * @param end 終了日時（終了日時ちょうどは期間に含まない）
    */
   public async getUpdatedThreads(start: Date, end: Date): Promise<Thread[]> {
-    throw new Error()
+    return await this.prisma.thread.findMany({
+      where: {
+        AND: [
+          {
+            updatedAt: {
+              gte: start,
+            },
+          },
+          {
+            updatedAt: {
+              lt: end,
+            },
+          },
+        ],
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
   }
 
   /**
@@ -49,7 +102,27 @@ export class SyncService {
     start: Date,
     end: Date
   ): Promise<Note[]> {
-    throw new Error()
+    return await this.prisma.note.findMany({
+      where: {
+        threadId: threadId,
+        parentId: null,
+        AND: [
+          {
+            updatedAt: {
+              gte: start,
+            },
+          },
+          {
+            updatedAt: {
+              lt: end,
+            },
+          },
+        ],
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
   }
 
   /**
@@ -63,6 +136,25 @@ export class SyncService {
     start: Date,
     end: Date
   ): Promise<Note[]> {
-    throw new Error()
+    return await this.prisma.note.findMany({
+      where: {
+        parentId: parentId,
+        AND: [
+          {
+            updatedAt: {
+              gte: start,
+            },
+          },
+          {
+            updatedAt: {
+              lt: end,
+            },
+          },
+        ],
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    })
   }
 }
