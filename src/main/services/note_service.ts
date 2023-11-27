@@ -396,6 +396,8 @@ export class NoteService {
               parentId: note.id,
             },
           ],
+          trash: false,
+          deleted: false,
         },
         data: {
           trash: true,
