@@ -1,21 +1,11 @@
 <script setup lang="ts">
 import HoverMenu from './HoverMenu.vue'
+import { Note } from '../../../common/note'
 import { Marked } from 'marked'
 import { markedHighlight } from 'marked-highlight'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 
-type Note = {
-  id: string
-  content: string
-  editorId: string
-  createdAt: Date
-  updatedAt: Date
-  threadId: string
-  parentId: string | null
-  removed: boolean
-  removedAt: Date
-}
 type Props = {
   notes: Note[]
   canExpandTree: boolean

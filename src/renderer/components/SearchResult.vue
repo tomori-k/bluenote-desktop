@@ -34,11 +34,11 @@ async function search() {
 
   notes.value.length = 0
 
-  for (const note of await window.api.searchNote({
-    text: props.searchOption.text,
-  })) {
-    notes.value.push(note)
-  }
+  // for (const note of await window.api.searchNote({
+  //   text: props.searchOption.text,
+  // })) {
+  //   notes.value.push(note)
+  // }
 }
 </script>
 
