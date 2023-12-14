@@ -4,5 +4,7 @@
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer"
   },
-  "[prisma]": { "editor.defaultFormatter": "Prisma.prisma" }
+  "[prisma]": { "editor.defaultFormatter": "Prisma.prisma" },
+  "jest.autoRevealOutput": "on-exec-error",
+  "jest.autoRun": "off"
 }

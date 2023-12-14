@@ -1,145 +1,126 @@
-// #![deny(clippy::all)]
+mod error;
+mod init;
+mod scanner;
+mod sync;
 
-// #[macro_use]
-// extern crate napi_derive;
-
+use init::client::RequestParamPairing;
 use napi::threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction};
-use napi::{bindgen_prelude::*, JsUndefined};
+use napi::{bindgen_prelude::*, JsString, JsUndefined};
 use napi_derive::napi;
+use once_cell::sync::Lazy;
 use std::sync::Mutex;
-use tokio::sync::oneshot;
-use windows::core::{h, GUID, HRESULT, HSTRING};
-use windows::Devices::Bluetooth::Rfcomm::*;
-use windows::Devices::Bluetooth::*;
-use windows::Devices::Enumeration::{
-    DeviceInformation, DeviceInformationCustomPairing, DeviceInformationKind, DevicePairingKinds,
-    DevicePairingProtectionLevel, DevicePairingRequestedEventArgs, DevicePairingResultStatus,
-    DeviceWatcher,
+use sync::server::{
+    RequestParamAllNotesInThread, RequestParamAllNotesInTree, RequestParamNoteUpdatesInThread,
+    RequestParamNoteUpdatesInTree, RequestParamSyncPermission, RequestParamThreadUpdates,
+    RequestParamUpdateSyncedAt,
 };
-use windows::Foundation::TypedEventHandler;
-use windows::Networking::Sockets::*;
-use windows::Storage::Streams::{ByteOrder, DataReader, DataWriter};
+use tokio::runtime::Runtime;
 
-static UUID_RFCOMM_SERVICE: &str = "41f4bde2-0492-4bf5-bae2-4451be148999";
+/// Bluenote Result
+type Result<T> = std::result::Result<T, crate::error::Error>;
 
-static SYNC_SERVER: SyncServer = SyncServer {
-    inner: Mutex::new(None),
-    request_updates: Mutex::new(None),
-    tx: Mutex::new(None),
-};
+/// 同期の RFCOMM サービス UUID
+static UUID_BLUENOTE_RFCOMM: &str = "41f4bde2-0492-4bf5-bae2-4451be148999";
 
-static PAIRING: Pairing = Pairing {
-    tx_accept: Mutex::new(None),
-    request_accept: Mutex::new(None),
-};
+/// 同期初期化の RFCOMM サービス UUID
+static UUID_BLUENOTE_RFCOMM_INIT: &str = "c144d029-2a62-4cfc-b39c-ca6ce173cb3f";
 
-static BLUETOOTH_SCANNER: BluetoothScanner = BluetoothScanner {
-    watcher: Mutex::new(None),
-    on_added: Mutex::new(None),
-};
+static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+});
 
-#[napi(ts_return_type = "Promise<void>")]
-pub fn start_sync_server() -> AsyncTask<SyncServerStartTask> {
-    AsyncTask::new(SyncServerStartTask {})
-}
+static BLUETOOTH_SCANNER: crate::scanner::BluetoothScanner =
+    crate::scanner::BluetoothScanner::new();
 
-#[napi]
-pub fn stop_sync_server() -> Result<()> {
-    match SYNC_SERVER.stop() {
-        Ok(_) => Ok(()),
-        Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
-    }
-}
-
-// デバイス<UUID> から更新分の送信リクエストが来た時のコールバックを設定
-#[napi(ts_args_type = "callback: (err: null | Error, uuid: string) => void")]
-pub fn set_on_updates_requested(callback: JsFunction) -> Result<()> {
-    let tsfn = callback.create_threadsafe_function(0, |ctx: ThreadSafeCallContext<String>| {
-        vec![ctx.value]
-            .iter()
-            .map(|x| ctx.env.create_string(&x))
-            .collect()
-    })?;
-
-    let mut request_updates = SYNC_SERVER.request_updates.lock().unwrap();
-    *request_updates = Some(tsfn);
-
-    Ok(())
-}
-
-// 更新分の送信リクエストに対する返信用関数
-#[napi]
-pub fn pass_updates(json: String) -> Result<()> {
-    let mut tx = SYNC_SERVER.tx.lock().unwrap();
-
-    if let Some(tx) = tx.take() {
-        tx.send(json).unwrap();
-    }
-
-    Ok(())
-}
-
-#[napi(ts_return_type = "Promise<string[]>")]
-pub fn sync(device_id: String) -> AsyncTask<SyncTask> {
-    AsyncTask::new(SyncTask { uuid: device_id })
-}
-
-// bond?
-
-#[napi(ts_return_type = "Promise<void>")]
-pub fn pair(device_id: String) -> AsyncTask<PairTask> {
-    AsyncTask::new(PairTask {
-        device_id: device_id,
+/// 指定したデバイスに RFCOMM で接続し、UUID を交換
+#[napi(ts_return_type = "Promise<string>")]
+pub fn init_client(windows_device_id: String, my_uuid: String) -> AsyncTask<InitClientTask> {
+    AsyncTask::new(InitClientTask {
+        windows_device_id,
+        my_uuid,
     })
 }
 
-#[napi]
-pub fn respond_to_pair_request(accept: bool) {
-    let mut tx = PAIRING.tx_accept.lock().unwrap();
-
-    if let Some(tx) = tx.take() {
-        tx.send(accept).unwrap();
-    }
-}
-
-#[napi(
-    ts_args_type = "callback: (err: null | Error, deviceName: string, deviceId: string) => void"
-)]
-pub fn set_on_found(callback: JsFunction) -> Result<()> {
+/// ペアリングをリクエストされたときのコールバックの設定
+/// このコールバックが呼ばれたとき、ユーザに PIN を表示してペアリングの
+/// 許可・不許可の判定をしてもらい、`respond_to_bond_request` でその
+/// 結果を受け取る
+#[napi(ts_args_type = "callback: (err: null | Error, deviceName: string, pin: string) => void")]
+pub fn set_on_bond_requested(callback: JsFunction) -> napi::Result<()> {
     let tsfn = callback.create_threadsafe_function(
         0,
-        |ctx: ThreadSafeCallContext<(String, String)>| {
-            vec![ctx.value.0, ctx.value.1]
+        |ctx: ThreadSafeCallContext<RequestParamPairing>| {
+            vec![ctx.value.device_name, ctx.value.pin]
                 .iter()
                 .map(|x| ctx.env.create_string(&x))
                 .collect()
         },
     )?;
 
-    let mut on_found = BLUETOOTH_SCANNER.on_added.lock().unwrap();
-    *on_found = Some(tsfn);
+    let mut callback = crate::init::client::ON_PAIRING_REQUESTED.lock().unwrap();
+    *callback = Some(tsfn);
 
     Ok(())
 }
 
+/// ペアリングリクエストに対する応答を返す
 #[napi]
-pub fn start_bluetooth_scan() -> Result<()> {
+pub fn respond_to_bond_request(accept: bool) -> Result<()> {
+    let mut tx = crate::init::client::ACCEPT_SENDER.lock().unwrap();
+
+    if let Some(tx) = tx.take() {
+        if let Err(_) = tx.send(accept) {
+            return Err(error::Error::SyncError(format!(
+                "Warning: failed to send pairing response. May be already timed out?"
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+/// デバイスのスキャンを開始する
+#[napi]
+pub fn start_bluetooth_scan() -> napi::Result<()> {
     match BLUETOOTH_SCANNER.start() {
         Ok(_) => Ok(()),
         Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
     }
 }
 
+/// デバイスのスキャンを停止する
 #[napi]
-pub fn stop_bluetooth_scan() -> Result<()> {
+pub fn stop_bluetooth_scan() -> napi::Result<()> {
     match BLUETOOTH_SCANNER.stop() {
         Ok(_) => Ok(()),
         Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
     }
 }
 
-#[napi(ts_args_type = "callback: (err: null | Error, deviceName: string, pin: string) => void")]
-pub fn set_on_pairing_requested(callback: JsFunction) -> Result<()> {
+/// スキャンの状態が変化したときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, isScanning: Boolean) => void")]
+pub fn set_on_scan_state_changed(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(0, |ctx: ThreadSafeCallContext<bool>| {
+        vec![ctx.value]
+            .iter()
+            .map(|x| ctx.env.get_boolean(x.clone()))
+            .collect()
+    })?;
+
+    let mut callback = BLUETOOTH_SCANNER.on_scan_state_changed.lock().unwrap();
+    *callback = Some(tsfn);
+
+    Ok(())
+}
+
+/// デバイスが見つかった時のコールバックを設定する
+#[napi(
+    ts_args_type = "callback: (err: null | Error, deviceName: string, deviceId: string) => void"
+)]
+pub fn set_on_bluetooth_device_found(callback: JsFunction) -> napi::Result<()> {
     let tsfn = callback.create_threadsafe_function(
         0,
         |ctx: ThreadSafeCallContext<(String, String)>| {
@@ -150,141 +131,74 @@ pub fn set_on_pairing_requested(callback: JsFunction) -> Result<()> {
         },
     )?;
 
-    let mut callback = PAIRING.request_accept.lock().unwrap();
+    let mut on_found = BLUETOOTH_SCANNER.on_found.lock().unwrap();
+    *on_found = Some(tsfn);
+
+    Ok(())
+}
+
+/// 同期設定の受付を開始する
+#[napi]
+pub fn start_init_server(my_uuid: String) -> AsyncTask<InitServerStartTask> {
+    AsyncTask::new(InitServerStartTask { my_uuid })
+}
+
+/// 同期設定の受付を停止する
+#[napi]
+pub fn stop_init_server() -> napi::Result<()> {
+    crate::init::server::stop()?;
+    Ok(())
+}
+
+/// 同期受付の状態が変化したときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, isRunning: Boolean) => void")]
+pub fn set_on_init_server_state_changed(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(0, |ctx: ThreadSafeCallContext<bool>| {
+        vec![ctx.value]
+            .iter()
+            .map(|x| ctx.env.get_boolean(x.clone()))
+            .collect()
+    })?;
+
+    let mut callback = crate::init::server::ON_STATE_CHANGED.lock().unwrap();
     *callback = Some(tsfn);
 
     Ok(())
 }
 
-// ↑↑↑
+/// UUID の交換が終わった時に呼ばれるコールバックを設定する
+#[napi(
+    ts_args_type = "callback: (err: null | Error, deviceName: string, deviceUuid: string) => void"
+)]
+pub fn set_on_uuid_exchanged(callback: JsFunction) -> napi::Result<()> {
+    // wwww
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<(String, String)>| {
+            vec![ctx.value.0, ctx.value.1]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
 
-struct SyncServerState {
-    listener: StreamSocketListener,
-    provider: RfcommServiceProvider,
+    let mut callback = crate::init::server::ON_UUID_EXCHANGED.lock().unwrap();
+
+    *callback = Some(tsfn);
+
+    Ok(())
 }
 
-struct SyncServer {
-    inner: Mutex<Option<SyncServerState>>,
-    request_updates: Mutex<Option<ThreadsafeFunction<String>>>,
-    tx: Mutex<Option<oneshot::Sender<String>>>,
+/// 同期対象のデバイスのデバイスIDを列挙する
+#[napi(ts_return_type = "Promise<string[]>")]
+pub fn enumerate_sync_companions() -> AsyncTask<EnumerateSyncCompanionsTask> {
+    AsyncTask::new(EnumerateSyncCompanionsTask {})
 }
 
-impl SyncServer {
-    fn on_received(
-        &'static self,
-        _: &Option<StreamSocketListener>,
-        e: &Option<StreamSocketListenerConnectionReceivedEventArgs>,
-    ) -> windows::core::Result<()> {
-        println!(
-            "Connected to: {}",
-            e.as_ref()
-                .unwrap()
-                .Socket()?
-                .Information()?
-                .RemoteHostName()?
-                .DisplayName()?
-        );
-
-        let socket = e.as_ref().unwrap().Socket()?;
-        let input_stream = socket.InputStream().unwrap();
-        let output_stream = socket.OutputStream().unwrap();
-        let reader = DataReader::CreateDataReader(&input_stream)?;
-        let writer = DataWriter::CreateDataWriter(&output_stream)?;
-        let local = tokio::task::LocalSet::new();
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
-        reader.SetByteOrder(ByteOrder::LittleEndian)?;
-        writer.SetByteOrder(ByteOrder::LittleEndian)?;
-
-        local.spawn_local(async move {
-            reader.LoadAsync(36)?.await?;
-            let uuid = reader.ReadString(36)?.to_string();
-
-            println!("UUID: {}", uuid);
-
-            // 更新分を JS 側から取得
-
-            let (tx, rx) = oneshot::channel();
-            {
-                let mut tx_self = self.tx.lock().unwrap();
-                *tx_self = Some(tx);
-            }
-
-            if let Some(request_updates) = self.request_updates.lock().unwrap().as_ref() {
-                request_updates.call(
-                    Ok(uuid),
-                    napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
-                );
-            }
-
-            let json = rx.await.unwrap();
-
-            // JSON 書き込み
-            let json = json.as_bytes();
-
-            writer.WriteUInt32(json.len() as u32)?;
-            writer.WriteBytes(json)?;
-            writer.StoreAsync()?.await?;
-            writer.FlushAsync()?.await?;
-
-            // ACK 読み取り
-            reader.LoadAsync(1)?.await?;
-            reader.ReadByte()?;
-
-            drop(socket);
-
-            println!("Connection closed.");
-
-            Ok::<(), windows::core::Error>(())
-        });
-
-        rt.block_on(local);
-
-        Ok(())
-    }
-
-    async fn start(&'static self) -> windows::core::Result<()> {
-        let mut inner = self.inner.lock().unwrap();
-
-        if inner.is_some() {
-            return Ok(());
-        }
-
-        let rfcomm_service_id = RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE))?;
-        let provider = RfcommServiceProvider::CreateAsync(&rfcomm_service_id)?.await?;
-        let listener = StreamSocketListener::new()?;
-
-        *inner = Some(SyncServerState { listener, provider });
-
-        let listener = &inner.as_ref().unwrap().listener;
-        let provider = &inner.as_ref().unwrap().provider;
-
-        listener.ConnectionReceived(&TypedEventHandler::new(|s, e| self.on_received(s, e)))?;
-        listener
-            .BindServiceNameWithProtectionLevelAsync(
-                &provider.ServiceId()?.AsString()?,
-                SocketProtectionLevel::PlainSocket, /* Androidの設定と合わせる */
-            )?
-            .await?;
-
-        provider.StartAdvertising(listener)?; // 必要
-
-        Ok(())
-    }
-
-    fn stop(&self) -> windows::core::Result<()> {
-        let mut inner = self.inner.lock().unwrap();
-
-        if let Some(state) = inner.as_ref() {
-            state.provider.StopAdvertising()?;
-            *inner = None;
-        }
-
-        Ok(())
-    }
+/// 同期サーバを起動する
+#[napi(ts_return_type = "Promise<void>")]
+pub fn start_sync_server() -> AsyncTask<SyncServerStartTask> {
+    AsyncTask::new(SyncServerStartTask {})
 }
 
 pub struct SyncServerStartTask {}
@@ -293,121 +207,298 @@ impl Task for SyncServerStartTask {
     type Output = ();
     type JsValue = JsUndefined;
 
-    fn compute(&mut self) -> Result<Self::Output> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        let future = SYNC_SERVER.start();
-
-        match rt.block_on(future) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
-        }
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        RUNTIME.block_on(crate::sync::server::start())?;
+        Ok(())
     }
 
-    fn resolve(&mut self, env: Env, _: Self::Output) -> Result<Self::JsValue> {
+    fn resolve(&mut self, env: Env, _: Self::Output) -> napi::Result<Self::JsValue> {
         env.get_undefined()
     }
 }
 
-// ↓↓↓
-
-async fn _sync(uuid: &str) -> windows::core::Result<Vec<String>> {
-    let selector = BluetoothDevice::GetDeviceSelectorFromPairingState(true)?;
-    let devices = DeviceInformation::FindAllAsyncAqsFilter(&selector)?.await?;
-    let mut note_jsons = Vec::<String>::new();
-
-    for d in devices {
-        let device = BluetoothDevice::FromIdAsync(&d.Id()?)?.await?;
-        let service_id = RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE))?;
-        let rfcomm_services = device
-            .GetRfcommServicesForIdWithCacheModeAsync(&service_id, BluetoothCacheMode::Uncached)?
-            .await?
-            .Services()?;
-
-        if rfcomm_services.Size()? == 0 {
-            continue;
-        }
-
-        println!("{}", device.Name()?);
-
-        let service = rfcomm_services.GetAt(0)?;
-        {
-            let socket = StreamSocket::new()?;
-
-            socket
-                .ConnectWithProtectionLevelAsync(
-                    &service.ConnectionHostName()?,
-                    &service.ConnectionServiceName()?,
-                    SocketProtectionLevel::PlainSocket,
-                )?
-                .await?;
-
-            // The socket is connected. At this point the App can wait for
-            // the user to take some action, for example, click a button to send a
-            // file to the device, which could invoke the Picker and then
-            // send the picked file. The transfer itself would use the
-            // Sockets API and not the Rfcomm API, and so is omitted here for
-            // brevity.
-
-            println!("Connected!");
-
-            let writer = DataWriter::CreateDataWriter(&socket.OutputStream()?)?;
-            let reader = DataReader::CreateDataReader(&socket.InputStream()?)?;
-
-            writer.SetByteOrder(ByteOrder::LittleEndian)?;
-            reader.SetByteOrder(ByteOrder::LittleEndian)?;
-
-            writer.WriteBytes(uuid.as_bytes())?;
-            writer.StoreAsync()?.await?;
-            writer.FlushAsync()?.await?;
-
-            reader.LoadAsync(4)?.await?;
-            let size = reader.ReadUInt32()?;
-            reader.LoadAsync(size)?.await?;
-            let json = reader.ReadString(size)?;
-
-            println!("Received: {}", json);
-
-            note_jsons.push(json.to_string());
-
-            writer.WriteByte(0)?;
-            writer.StoreAsync()?.await?;
-            writer.FlushAsync()?.await?;
-        }
-        println!("Connection closed.");
-    }
-
-    if note_jsons.len() == 0 {
-        println!("No bonded devices found.");
-    }
-
-    Ok(note_jsons)
+/// 同期サーバを停止する
+#[napi]
+pub fn stop_sync_server() -> Result<()> {
+    crate::sync::server::stop()
 }
 
-pub struct SyncTask {
-    uuid: String,
+/// 同期がリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, uuid: string) => void")]
+pub fn set_on_sync_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamSyncPermission>| {
+            vec![ctx.value.uuid]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_sync_requested
+        .set_callback(tsfn);
+
+    Ok(())
 }
 
-impl Task for SyncTask {
+/// 同期リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_sync_request(allow: bool) {
+    crate::sync::server::SYNC_SERVICE
+        .on_sync_requested
+        .send_result(allow);
+}
+
+/// 現在時刻がリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error) => void")]
+pub fn set_on_now_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(0, |_: ThreadSafeCallContext<()>| {
+        Ok::<Vec<()>, napi::Error>(vec![])
+    })?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_now_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 現在時刻リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_now_request(now: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_now_requested
+        .send_result(now);
+}
+
+/// スレッドの更新差分がリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, uuid: string, updatedEnd: string) => void")]
+pub fn set_on_thread_updates_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamThreadUpdates>| {
+            vec![ctx.value.uuid, ctx.value.updated_end]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    let mut callback = crate::sync::server::SYNC_SERVICE
+        .on_thread_updates_requested
+        .func
+        .lock()
+        .unwrap();
+    *callback = Some(tsfn);
+
+    Ok(())
+}
+
+/// スレッド更新差分リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_thread_updates_request(json: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_thread_updates_requested
+        .send_result(json);
+}
+
+/// 指定スレッド内のメモの内容の送信をリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, threadId: string) => void")]
+pub fn set_on_all_notes_in_thread_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamAllNotesInThread>| {
+            vec![ctx.value.thread_id]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_all_notes_in_thread_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 指定スレッド内のメモの内容の送信リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_all_notes_in_thread_request(json: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_all_notes_in_thread_requested
+        .send_result(json);
+}
+
+/// 指定ツリー内のメモの内容の送信をリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, parentId: string) => void")]
+pub fn set_on_all_notes_in_tree_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamAllNotesInTree>| {
+            vec![ctx.value.parent_id]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_all_notes_in_tree_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 指定ツリー内のメモの内容の送信リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_all_notes_in_tree_request(json: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_all_notes_in_tree_requested
+        .send_result(json);
+}
+
+/// 指定スレッド内のメモの更新差分の送信をリクエストされたときのコールバックを設定する
+#[napi(
+    ts_args_type = "callback: (err: null | Error, uuid: string, threadId: string, updatedEnd: string) => void"
+)]
+pub fn set_on_note_updates_in_thread_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamNoteUpdatesInThread>| {
+            vec![ctx.value.uuid, ctx.value.thread_id, ctx.value.updated_end]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_note_updates_in_thread_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 指定スレッド内のメモの更新差分の送信リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_note_updates_in_thread_request(json: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_note_updates_in_thread_requested
+        .send_result(json);
+}
+
+/// 指定ツリー内のメモの更新差分の送信をリクエストされたときのコールバックを設定する
+#[napi(
+    ts_args_type = "callback: (err: null | Error, uuid: string, parentId: string, updatedEnd: string) => void"
+)]
+pub fn set_on_note_updates_in_tree_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamNoteUpdatesInTree>| {
+            vec![ctx.value.uuid, ctx.value.parent_id, ctx.value.updated_end]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_note_updates_in_tree_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 指定ツリー内のメモの更新差分の送信リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_note_updates_in_tree_request(json: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_note_updates_in_tree_requested
+        .send_result(json);
+}
+
+/// 同期時刻の保存をリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error, uuid: string, updatedEnd: string) => void")]
+pub fn set_on_update_synced_at_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(
+        0,
+        |ctx: ThreadSafeCallContext<RequestParamUpdateSyncedAt>| {
+            vec![ctx.value.uuid, ctx.value.updated_end]
+                .iter()
+                .map(|x| ctx.env.create_string(&x))
+                .collect()
+        },
+    )?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_update_synced_at_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
+/// 同期時刻の保存リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_update_synced_at_request() {
+    crate::sync::server::SYNC_SERVICE
+        .on_update_synced_at_requested
+        .send_result(());
+}
+
+pub struct InitServerStartTask {
+    my_uuid: String,
+}
+
+impl Task for InitServerStartTask {
+    type Output = ();
+    type JsValue = JsUndefined;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        RUNTIME.block_on(crate::init::server::start(self.my_uuid.to_owned()))?;
+        Ok(())
+    }
+
+    fn resolve(&mut self, env: Env, _: Self::Output) -> napi::Result<Self::JsValue> {
+        env.get_undefined()
+    }
+}
+
+pub struct InitClientTask {
+    windows_device_id: String,
+    my_uuid: String,
+}
+
+impl Task for InitClientTask {
+    type Output = String;
+    type JsValue = JsString;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        let future = crate::init::client::init(&self.windows_device_id, &self.my_uuid);
+        Ok(RUNTIME.block_on(future)?)
+    }
+
+    fn resolve(&mut self, env: Env, uuid: Self::Output) -> napi::Result<Self::JsValue> {
+        env.create_string(&uuid)
+    }
+}
+
+pub struct EnumerateSyncCompanionsTask {}
+
+impl Task for EnumerateSyncCompanionsTask {
     type Output = Vec<String>;
     type JsValue = Array;
 
-    fn compute(&mut self) -> Result<Self::Output> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        let future = _sync(&self.uuid);
-
-        match rt.block_on(future) {
-            Ok(note_jsons) => Ok(note_jsons),
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        match RUNTIME.block_on(crate::sync::client::enumerate_sync_companions()) {
+            Ok(v) => Ok(v),
             Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
         }
     }
 
-    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+    fn resolve(&mut self, env: Env, output: Self::Output) -> napi::Result<Self::JsValue> {
         let mut array = env.create_array(output.len() as u32)?;
 
         for i in 0..output.len() {
@@ -418,197 +509,73 @@ impl Task for SyncTask {
     }
 }
 
-struct Pairing {
-    tx_accept: Mutex<Option<oneshot::Sender<bool>>>,
-    request_accept: Mutex<Option<ThreadsafeFunction<(String, String)>>>,
+/// napi-rs の ThreadsafeFunction の戻り値を得たい！
+pub struct NonBlockingThreadsafeFunctionWithReturn<TParam, TResult>
+where
+    TParam: 'static,
+{
+    func: Mutex<Option<ThreadsafeFunction<TParam>>>,
+    result_sender: Mutex<Option<tokio::sync::oneshot::Sender<TResult>>>,
 }
 
-impl Pairing {
-    async fn pair(&'static self, device_id: &str) -> windows::core::Result<()> {
-        let bluetooth_device = BluetoothDevice::FromIdAsync(&HSTRING::from(device_id))?.await?;
-        let rfcomm_services = bluetooth_device
-            .GetRfcommServicesForIdWithCacheModeAsync(
-                &RfcommServiceId::FromUuid(GUID::from(UUID_RFCOMM_SERVICE))?,
-                BluetoothCacheMode::Uncached,
-            )?
-            .await?;
+impl<TParam, TReturn> NonBlockingThreadsafeFunctionWithReturn<TParam, TReturn> {
+    pub const fn new() -> Self {
+        Self {
+            func: Mutex::new(None),
+            result_sender: Mutex::new(None),
+        }
+    }
 
-        // 特定のサービスIDをもっているデバイスのみ対象
-        if rfcomm_services.Services()?.Size()? > 0 {
-            let pairing = bluetooth_device.DeviceInformation()?.Pairing()?;
-            let is_paired = pairing.IsPaired()?;
+    pub async fn call(&self, param: TParam) -> Result<TReturn> {
+        // 応答の送受信チャンネルを作成
+        let rx: tokio::sync::oneshot::Receiver<TReturn>;
+        {
+            let mut sender = self.result_sender.lock().unwrap();
 
-            println!("{}", if is_paired { "Paired" } else { "Not Paired" });
+            if sender.is_some() {
+                return Err(crate::error::Error::SyncError(format!(
+                    "There exists another call"
+                )));
+            }
 
-            if !is_paired {
-                let custom_pairing = pairing.Custom()?;
-                custom_pairing.PairingRequested(&TypedEventHandler::new(|s, e| {
-                    self.on_pairing_requested(s, e)
-                }))?;
+            let tx: tokio::sync::oneshot::Sender<TReturn>;
 
-                let result = custom_pairing
-                    .PairWithProtectionLevelAsync(
-                        DevicePairingKinds::ConfirmPinMatch,
-                        DevicePairingProtectionLevel::Default,
-                    )?
-                    .await?;
+            (tx, rx) = tokio::sync::oneshot::channel();
+            *sender = Some(tx);
+        }
 
-                println!(
-                    "Pairing result: {}",
-                    if result.Status()? == DevicePairingResultStatus::Paired {
-                        "Success"
-                    } else {
-                        "Failed"
-                    }
+        let func = self.func.lock().unwrap();
+
+        match &*func {
+            Some(func) => {
+                func.call(
+                    Ok(param),
+                    napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
                 );
             }
-        } else {
-            println!("Device seems not to have Bluenote app.");
-        }
-
-        Ok(())
-    }
-
-    fn on_pairing_requested(
-        &'static self,
-        _: &Option<DeviceInformationCustomPairing>,
-        e: &Option<DevicePairingRequestedEventArgs>,
-    ) -> windows::core::Result<()> {
-        let e = e.as_ref().unwrap();
-
-        println!("On pairing requested");
-
-        if e.PairingKind()? != DevicePairingKinds::ConfirmPinMatch {
-            return Err(windows::core::Error::new(
-                HRESULT(0x80004004u32 as i32),
-                h!("Only ConfirmPinMatch is allowed for a pairing kind.").to_owned(),
-            ));
-        }
-
-        let rx: oneshot::Receiver<bool>;
-        {
-            let mut tx_accept = self.tx_accept.lock().unwrap();
-
-            if tx_accept.is_some() {
-                // 別のデバイスのペアリング中
-                // もしくはなにもせずに return (=ペアリング拒否) もあり？
-                return Err(windows::core::Error::new(
-                    HRESULT(0x80004004u32 as i32),
-                    h!("Another device is pairing.").to_owned(),
-                ));
+            None => {
+                return Err(crate::error::Error::SyncError(format!(
+                    "Callback function is found"
+                )));
             }
-
-            let tx: oneshot::Sender<bool>;
-
-            (tx, rx) = oneshot::channel();
-            *tx_accept = Some(tx);
         }
 
-        let device_name = e.DeviceInformation()?.Name()?.to_string();
-        let pin = e.Pin()?.to_string();
-
-        println!("PIN: {}", pin);
-
-        let request_accept = self.request_accept.lock().unwrap();
-
-        if let Some(request_accept) = &*request_accept {
-            request_accept.call(
-                Ok((device_name, pin)),
-                napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
-            );
-        }
-
-        let accept = rx.blocking_recv().unwrap();
-
-        if accept {
-            e.Accept()?;
-        }
-
-        Ok(())
+        Ok(rx.await.unwrap())
     }
-}
 
-pub struct PairTask {
-    device_id: String,
-}
+    pub fn send_result(&self, result: TReturn) {
+        let mut tx = self.result_sender.lock().unwrap();
 
-impl Task for PairTask {
-    type Output = ();
-    type JsValue = JsUndefined;
-
-    fn compute(&mut self) -> Result<Self::Output> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        let future = PAIRING.pair(&self.device_id);
-
-        match rt.block_on(future) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(napi::Error::from_reason(e.message().to_string())),
+        if let Some(tx) = tx.take() {
+            if let Err(_) = tx.send(result) {
+                // 例外出すのはなんか違う気がするんだよなー
+                println!("Warning: failed to send response. May be already timed out?")
+            }
         }
     }
 
-    fn resolve(&mut self, env: Env, _: Self::Output) -> Result<Self::JsValue> {
-        env.get_undefined()
-    }
-}
-
-struct BluetoothScanner {
-    watcher: Mutex<Option<DeviceWatcher>>,
-    on_added: Mutex<Option<ThreadsafeFunction<(String, String)>>>,
-}
-
-impl BluetoothScanner {
-    fn start(&'static self) -> windows::core::Result<()> {
-        let mut watcher = self.watcher.lock().unwrap();
-
-        if watcher.is_some() {
-            return Ok(());
-        }
-
-        let w = DeviceInformation::CreateWatcherWithKindAqsFilterAndAdditionalProperties(
-            h!("(System.Devices.Aep.ProtocolId:=\"{e0cbf06c-cd8b-4647-bb8a-263b43f0f974}\")"),
-            None,
-            DeviceInformationKind::AssociationEndpoint,
-        )?;
-
-        w.Added(&TypedEventHandler::new(|s, e| self.on_added(s, e)))?;
-        w.Start()?;
-
-        *watcher = Some(w);
-
-        Ok(())
-    }
-
-    fn stop(&self) -> windows::core::Result<()> {
-        let mut watcher = self.watcher.lock().unwrap();
-
-        if let Some(watcher) = watcher.take() {
-            watcher.Stop()?;
-        }
-
-        Ok(())
-    }
-
-    fn on_added(
-        &'static self,
-        _: &Option<DeviceWatcher>,
-        info: &Option<DeviceInformation>,
-    ) -> windows::core::Result<()> {
-        let info = info.as_ref().unwrap();
-        let name = info.Name()?.to_string();
-        let id = info.Id()?.to_string();
-
-        let on_added = self.on_added.lock().unwrap();
-
-        if let Some(on_added) = &*on_added {
-            on_added.call(
-                Ok((name, id)),
-                napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
-            );
-        }
-
-        Ok(())
+    pub fn set_callback(&self, tsfn: ThreadsafeFunction<TParam>) {
+        let mut callback = self.func.lock().unwrap();
+        *callback = Some(tsfn);
     }
 }
