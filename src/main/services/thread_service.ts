@@ -1,16 +1,67 @@
 import { PrismaClient } from '@prisma/client'
 import { Thread } from '../../common/thread'
 
-export class ThreadService {
+export interface IThreadService {
+  /**
+   * すべてのスレッドを取得する
+   */
+  getAllThreads(): Promise<Thread[]>
+
+  /**
+   * スレッドを取得する
+   * @param id スレッドの ID (UUID)
+   */
+  find(id: string): Promise<Thread | null>
+
+  /**
+   * スレッドを取得する
+   * @param id スレッドの ID (UUID)
+   */
+  get(id: string): Promise<Thread>
+
+  /**
+   * スレッドを作成する
+   * @param name スレッド名
+   */
+  create(name: string): Promise<Thread>
+
+  /**
+   * スレッド名を変更する
+   * @param thread スレッド
+   * @param name 新しいスレッド名
+   */
+  rename(thread: Thread, name: string): Promise<Thread>
+
+  /**
+   * スレッドの表示モードを変更する
+   * @param thread スレッド
+   * @param displayMode 新しい表示モード
+   */
+  changeDisplayMode(
+    thread: Thread,
+    displayMode: 'monologue' | 'scrap'
+  ): Promise<Thread>
+
+  /**
+   * スレッドとそのメモをごみ箱に移動させる
+   * @param thread ごみ箱に移動させるスレッド
+   */
+  remove(thread: Thread): Promise<void>
+
+  /**
+   * スレッドを完全に削除する
+   * @param thread 削除するスレッド
+   */
+  deleteThread(thread: Thread): Promise<void>
+}
+
+export class ThreadService implements IThreadService {
   private readonly prisma: PrismaClient
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma
   }
 
-  /**
-   * すべてのスレッドを取得する
-   */
   public async getAllThreads(): Promise<Thread[]> {
     return await this.prisma.thread.findMany({
       where: {
@@ -23,10 +74,10 @@ export class ThreadService {
     })
   }
 
-  /**
-   * スレッドを取得する
-   * @param id スレッドの ID (UUID)
-   */
+  public async find(id: string): Promise<Thread | null> {
+    return await this.prisma.thread.findUnique({ where: { id: id } })
+  }
+
   public async get(id: string): Promise<Thread> {
     return await this.prisma.thread.findUniqueOrThrow({ where: { id: id } })
   }
@@ -44,10 +95,6 @@ export class ThreadService {
     return thread
   }
 
-  /**
-   * スレッドを作成する
-   * @param name スレッド名
-   */
   public async create(name: string): Promise<Thread> {
     const timestamp = new Date()
 
@@ -64,11 +111,6 @@ export class ThreadService {
     })
   }
 
-  /**
-   * スレッド名を変更する
-   * @param thread スレッド
-   * @param name 新しいスレッド名
-   */
   public async rename(thread: Thread, name: string): Promise<Thread> {
     thread = await this.checkRemovedState(thread)
 
@@ -86,11 +128,6 @@ export class ThreadService {
     })
   }
 
-  /**
-   * スレッドの表示モードを変更する
-   * @param thread スレッド
-   * @param displayMode 新しい表示モード
-   */
   public async changeDisplayMode(
     thread: Thread,
     displayMode: 'monologue' | 'scrap'
@@ -111,10 +148,6 @@ export class ThreadService {
     })
   }
 
-  /**
-   * スレッドとそのメモをごみ箱に移動させる
-   * @param thread ごみ箱に移動させるスレッド
-   */
   public async remove(thread: Thread): Promise<void> {
     thread = await this.checkRemovedState(thread)
 
@@ -148,10 +181,6 @@ export class ThreadService {
     })
   }
 
-  /**
-   * スレッドを完全に削除する
-   * @param thread 削除するスレッド
-   */
   public async deleteThread(thread: Thread): Promise<void> {
     thread = await this.get(thread.id)
 

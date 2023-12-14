@@ -1,5 +1,5 @@
-import { assertDateGreaterThanOrEqual, testPrisma } from './helper'
-import { NoteService } from '../../src/main/services/note_service'
+import { assertDateGreaterThanOrEqual, testPrisma } from '../helper'
+import { NoteService } from '../../../src/main/services/note_service'
 import { PrismaClient } from '@prisma/client'
 
 describe('get', () => {
@@ -68,6 +68,75 @@ describe('get', () => {
     const noteService = new NoteService(prisma)
 
     await expect(noteService.get('a_a')).rejects.toThrow(Error)
+  })
+})
+
+describe('find', () => {
+  testPrisma('ok', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: true,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:48Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(noteService.find('a_a')).resolves.toStrictEqual({
+      id: 'a_a',
+      content: '',
+      threadId: 'a',
+      parentId: null,
+      trash: true,
+      deleted: false,
+      createdAt: new Date('2023-11-22T10:54:48Z'),
+      updatedAt: new Date('2023-11-22T10:54:49Z'),
+      modifiedAt: new Date('2023-11-22T10:54:49Z'),
+    })
+  })
+
+  testPrisma('not found', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: true,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(noteService.find('a_a')).resolves.toBe(null)
   })
 })
 

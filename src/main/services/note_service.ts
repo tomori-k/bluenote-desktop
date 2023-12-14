@@ -3,19 +3,119 @@ import { Note } from '../../common/note'
 import { Thread } from '../../common/thread'
 import { ThreadService } from './thread_service'
 
-export class NoteService {
+export interface INoteService {
+  /**
+   * メモを取得する
+   * @param id メモの ID (UUID)
+   */
+  get(id: string): Promise<Note>
+
+  /**
+   * メモを取得する
+   * @param id メモの ID (UUID)
+   */
+  find(id: string): Promise<Note | null>
+
+  /**
+   * スレッド直下のメモを作成日時でソートして取得する（ツリーのメモは含めない）
+   * @param thread スレッド
+   * @param searchText 検索文字列
+   * @param lastId 前回取得したメモのうち最後の ID。このメモ以降のメモ（自身は含めない）を取得する
+   * @param count 取得するデータの数
+   * @param desc 降順で取得する
+   */
+  findInThread(
+    thread: Thread,
+    searchText: string,
+    lastId: string | null,
+    count: number,
+    desc: boolean
+  ): Promise<Note[]>
+
+  /**
+   * ツリーにあるメモを作成日時でソートして取得する
+   * @param parent
+   * @param searchText 検索文字列
+   * @param lastId 前回取得したメモのうち最後の ID。このメモ以降のメモ（自身は含めない）を取得する
+   * @param count 取得するデータの数
+   * @param desc 降順で取得する
+   */
+  findInTree(
+    parent: Note,
+    searchText: string,
+    lastId: string | null,
+    count: number,
+    desc: boolean
+  ): Promise<Note[]>
+
+  /**
+   * ごみ箱にあるメモを作成日時昇順で取得する
+   * @param searchText 検索文字列
+   * @param lastId 前回取得したメモのうち最後の ID。このメモ以降のメモ（自身は含めない）を取得する
+   * @param count 取得するデータの数
+   */
+  findInTrash(
+    searchText: string,
+    lastId: string | null,
+    count: number
+  ): Promise<Note[]>
+
+  /**
+   * スレッドにメモを作成する
+   * @param content メモの内容
+   * @param thread メモを追加するスレッド
+   */
+  createInThread(content: string, thread: Thread): Promise<Note>
+
+  /**
+   * ツリーにメモを作成する
+   * @param content メモの内容
+   * @param parentNote 親のメモ
+   */
+  createInTree(content: string, parentNote: Note): Promise<Note>
+
+  /**
+   * メモの内容を編集する
+   * @param content 編集後の内容
+   * @param note 編集対象のメモ
+   */
+  edit(content: string, note: Note): Promise<Note>
+  /**
+   * メモをごみ箱に移動させる
+   * ツリーがある場合はその中のメモもごみ箱に移動する
+   * @param note メモ
+   */
+  remove(note: Note): Promise<void>
+  /**
+   * ごみ箱にあるメモを元に戻す
+   * @param note メモ
+   */
+  restore(note: Note): Promise<void>
+
+  /**
+   * ごみ箱にあるメモを完全に削除する
+   * @param note メモ
+   */
+  deleteNote(note: Note): Promise<void>
+}
+
+export class NoteService implements INoteService {
   private readonly prisma: PrismaClient
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma
   }
 
-  /**
-   * メモを取得する
-   * @param id メモの ID (UUID)
-   */
   public async get(id: string): Promise<Note> {
     return await this.prisma.note.findUniqueOrThrow({
+      where: {
+        id: id,
+      },
+    })
+  }
+
+  public async find(id: string): Promise<Note | null> {
+    return await this.prisma.note.findUnique({
       where: {
         id: id,
       },
@@ -63,7 +163,7 @@ export class NoteService {
    * @param threadId スレッド ID (UUID)
    * @param parentId 親のメモの ID (UUID)
    */
-  private async find(
+  private async findNotes(
     trash: boolean,
     searchText: string,
     lastId: string | null,
@@ -173,14 +273,6 @@ export class NoteService {
     }
   }
 
-  /**
-   * スレッド直下のメモを作成日時でソートして取得する（ツリーのメモは含めない）
-   * @param thread スレッド
-   * @param searchText 検索文字列
-   * @param lastId 前回取得したメモのうち最後の ID。このメモ以降のメモ（自身は含めない）を取得する
-   * @param count 取得するデータの数
-   * @param desc 降順で取得する
-   */
   public async findInThread(
     thread: Thread,
     searchText: string,
@@ -190,7 +282,7 @@ export class NoteService {
   ): Promise<Note[]> {
     await this.ensureThreadExists(thread)
 
-    return await this.find(
+    return await this.findNotes(
       false,
       searchText,
       lastId,
@@ -201,14 +293,6 @@ export class NoteService {
     )
   }
 
-  /**
-   * ツリーにあるメモを作成日時でソートして取得する
-   * @param parent
-   * @param searchText 検索文字列
-   * @param lastId 前回取得したメモのうち最後の ID。このメモ以降のメモ（自身は含めない）を取得する
-   * @param count 取得するデータの数
-   * @param desc 降順で取得する
-   */
   public async findInTree(
     parent: Note,
     searchText: string,
@@ -218,7 +302,7 @@ export class NoteService {
   ): Promise<Note[]> {
     await this.ensureNoteExists(parent)
 
-    return await this.find(
+    return await this.findNotes(
       false,
       searchText,
       lastId,
@@ -229,25 +313,14 @@ export class NoteService {
     )
   }
 
-  /**
-   * ごみ箱にあるメモを作成日時昇順で取得する
-   * @param searchText 検索文字列
-   * @param lastId 前回取得したメモのうち最後の ID。このメモ以降のメモ（自身は含めない）を取得する
-   * @param count 取得するデータの数
-   */
   public async findInTrash(
     searchText: string,
     lastId: string | null,
     count: number
   ): Promise<Note[]> {
-    return await this.find(true, searchText, lastId, count, false)
+    return await this.findNotes(true, searchText, lastId, count, false)
   }
 
-  /**
-   * スレッドにメモを作成する
-   * @param content メモの内容
-   * @param thread メモを追加するスレッド
-   */
   public async createInThread(content: string, thread: Thread): Promise<Note> {
     await this.ensureThreadExists(thread)
 
@@ -283,11 +356,6 @@ export class NoteService {
     return created!
   }
 
-  /**
-   * ツリーにメモを作成する
-   * @param content メモの内容
-   * @param parentNote 親のメモ
-   */
   public async createInTree(content: string, parentNote: Note): Promise<Note> {
     parentNote = await this.ensureNoteExists(parentNote)
 
@@ -327,11 +395,6 @@ export class NoteService {
     return created!
   }
 
-  /**
-   * メモの内容を編集する
-   * @param content 編集後の内容
-   * @param note 編集対象のメモ
-   */
   public async edit(content: string, note: Note): Promise<Note> {
     await this.ensureNoteExists(note)
 
@@ -375,11 +438,6 @@ export class NoteService {
     return updated!
   }
 
-  /**
-   * メモをごみ箱に移動させる
-   * ツリーがある場合はその中のメモもごみ箱に移動する
-   * @param note メモ
-   */
   public async remove(note: Note): Promise<void> {
     await this.ensureNoteExists(note)
 
@@ -429,10 +487,6 @@ export class NoteService {
     })
   }
 
-  /**
-   * ごみ箱にあるメモを元に戻す
-   * @param note メモ
-   */
   public async restore(note: Note): Promise<void> {
     note = await this.get(note.id)
 
@@ -503,10 +557,6 @@ export class NoteService {
     })
   }
 
-  /**
-   * ごみ箱にあるメモを完全に削除する
-   * @param note メモ
-   */
   public async deleteNote(note: Note): Promise<void> {
     note = await this.get(note.id)
 

@@ -1,5 +1,5 @@
-import { testPrisma } from './helper'
-import { SyncService } from '../../src/main/services/sync_service'
+import { testPrisma } from '../helper'
+import { SyncService } from '../../../src/main/services/sync_service'
 
 describe('getAllNotesInThread', () => {
   testPrisma('ok', async (prisma) => {

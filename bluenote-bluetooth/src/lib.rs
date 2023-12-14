@@ -362,7 +362,7 @@ pub fn respond_to_all_notes_in_tree_request(json: String) {
 
 /// 指定スレッド内のメモの更新差分の送信をリクエストされたときのコールバックを設定する
 #[napi(
-    ts_args_type = "callback: (err: null | Error, uuid: string, threadId: string, updatedEnd: String) => void"
+    ts_args_type = "callback: (err: null | Error, uuid: string, threadId: string, updatedEnd: string) => void"
 )]
 pub fn set_on_note_updates_in_thread_requested(callback: JsFunction) -> napi::Result<()> {
     let tsfn = callback.create_threadsafe_function(
@@ -392,7 +392,7 @@ pub fn respond_to_note_updates_in_thread_request(json: String) {
 
 /// 指定ツリー内のメモの更新差分の送信をリクエストされたときのコールバックを設定する
 #[napi(
-    ts_args_type = "callback: (err: null | Error, uuid: string, parentId: string, updatedEnd: String) => void"
+    ts_args_type = "callback: (err: null | Error, uuid: string, parentId: string, updatedEnd: string) => void"
 )]
 pub fn set_on_note_updates_in_tree_requested(callback: JsFunction) -> napi::Result<()> {
     let tsfn = callback.create_threadsafe_function(
@@ -421,7 +421,7 @@ pub fn respond_to_note_updates_in_tree_request(json: String) {
 }
 
 /// 同期時刻の保存をリクエストされたときのコールバックを設定する
-#[napi(ts_args_type = "callback: (err: null | Error, uuid: string, updatedEnd: String) => void")]
+#[napi(ts_args_type = "callback: (err: null | Error, uuid: string, updatedEnd: string) => void")]
 pub fn set_on_update_synced_at_requested(callback: JsFunction) -> napi::Result<()> {
     let tsfn = callback.create_threadsafe_function(
         0,

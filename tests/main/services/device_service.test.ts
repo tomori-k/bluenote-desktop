@@ -1,5 +1,5 @@
-import { testPrisma } from './helper'
-import { DeviceService } from '../../src/main/services/device_service'
+import { testPrisma } from '../helper'
+import { DeviceService } from '../../../src/main/services/device_service'
 
 describe('find', () => {
   testPrisma('exist', async (prisma) => {

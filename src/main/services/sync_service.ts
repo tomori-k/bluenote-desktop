@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { Note } from '../../common/note'
 import { Thread } from '../../common/thread'
+import { Diff } from '../sync/diff'
 
 export class SyncService {
   private readonly prisma: PrismaClient
@@ -156,5 +157,9 @@ export class SyncService {
         createdAt: 'asc',
       },
     })
+  }
+
+  public async updateByDiff(diff: Diff): Promise<void> {
+    throw new Error('Method not implemented.')
   }
 }

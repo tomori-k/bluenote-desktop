@@ -1,5 +1,5 @@
-import { ThreadService } from '../../src/main/services/thread_service'
-import { testPrisma, assertDateGreaterThanOrEqual } from './helper'
+import { ThreadService } from '../../../src/main/services/thread_service'
+import { testPrisma, assertDateGreaterThanOrEqual } from '../helper'
 
 describe('getAllThreads', () => {
   testPrisma('ok', async (prisma) => {
@@ -72,6 +72,41 @@ describe('getAllThreads', () => {
         modifiedAt: new Date('2023-11-22T10:54:49Z'),
       },
     ])
+  })
+})
+
+describe('find', () => {
+  testPrisma('ok', async (prisma) => {
+    await prisma.thread.create({
+      data: {
+        id: 'a',
+        name: '',
+        displayMode: 'monologue',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-08-09T16:32:00Z'),
+        updatedAt: new Date('2023-08-09T16:32:00Z'),
+        modifiedAt: new Date('2023-08-09T16:32:00Z'),
+      },
+    })
+
+    const threadService = new ThreadService(prisma)
+
+    await expect(threadService.find('a')).resolves.toStrictEqual({
+      id: 'a',
+      name: '',
+      displayMode: 'monologue',
+      trash: false,
+      deleted: false,
+      createdAt: new Date('2023-08-09T16:32:00Z'),
+      updatedAt: new Date('2023-08-09T16:32:00Z'),
+      modifiedAt: new Date('2023-08-09T16:32:00Z'),
+    })
+  })
+
+  testPrisma('not found', async (prisma) => {
+    const threadService = new ThreadService(prisma)
+    await expect(threadService.find('a')).resolves.toBe(null)
   })
 })
 
