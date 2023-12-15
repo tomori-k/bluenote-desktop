@@ -8,4 +8,5 @@ export default defineConfig({
   build: {
     sourcemap: true,
   },
+  css: { postcss: './src/renderer-react/' },
 })
