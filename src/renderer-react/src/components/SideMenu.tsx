@@ -127,6 +127,28 @@ export default function SideMenu() {
     }
   }
 
+  async function onThreadDisplayModeChanged(mode: 'monologue' | 'scrap') {
+    if (contextMenuState == null) return
+
+    try {
+      const updated = await window.api.changeThreadDisplayMode(
+        contextMenuState.thread,
+        mode
+      )
+      const updatedWithState = { ...updated, isRenaming: false }
+
+      setThreads(
+        threads.map((x) => {
+          if (x.id !== contextMenuState.thread.id) return x
+          return updatedWithState
+        })
+      )
+      setContextMenuState({ ...contextMenuState, thread: updatedWithState })
+    } catch (e) {
+      setHasErrorOccured(true)
+    }
+  }
+
   return (
     <div>
       <div className="flex">
@@ -176,6 +198,26 @@ export default function SideMenu() {
             <ul>
               <li onClick={onRenameClicked}>名前変更</li>
               <li onClick={onRemoveClicked}>ごみ箱に移動</li>
+              <li>
+                <input
+                  name="thread-display-mode"
+                  id="monologue"
+                  type="radio"
+                  checked={contextMenuState.thread.displayMode === 'monologue'}
+                  onChange={() => onThreadDisplayModeChanged('monologue')}
+                />
+                <label htmlFor="monologue">Monologue</label>
+              </li>
+              <li>
+                <input
+                  name="thread-display-mode"
+                  id="scrap"
+                  type="radio"
+                  checked={contextMenuState.thread.displayMode === 'scrap'}
+                  onChange={() => onThreadDisplayModeChanged('scrap')}
+                />
+                <label htmlFor="scrap">Scrap</label>
+              </li>
             </ul>
           </ContextMenu>
         )}
