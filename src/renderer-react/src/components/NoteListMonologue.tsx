@@ -40,8 +40,13 @@ export default function NoteListMonologue({
       {noteGroups.map((noteGroup) => (
         <li key={noteGroup[0].id} className="">
           <ul className="flex flex-col-reverse">
-            {noteGroup.map((note) => (
-              <li key={note.id}>{note.content}</li>
+            {noteGroup.map((note, i) => (
+              <li key={note.id}>
+                {i === noteGroup.length - 1 && (
+                  <p>{note.createdAt.toUTCString()}</p>
+                )}
+                <p>{note.content}</p>
+              </li>
             ))}
           </ul>
         </li>

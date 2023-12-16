@@ -38,7 +38,10 @@ export default function NoteListScrap({
   return (
     <ul className="overflow-y-auto">
       {notes.map((x) => (
-        <li key={x.id}>{x.content}</li>
+        <li key={x.id}>
+          <p>{x.createdAt.toUTCString()}</p>
+          <p>{x.content}</p>
+        </li>
       ))}
       {!hasLoadedAll && <li ref={refLoading}>Loading</li>}
     </ul>
