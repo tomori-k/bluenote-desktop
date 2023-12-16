@@ -37,8 +37,26 @@ function useNotePagination(
   }
 }
 
+/**
+ * 作成日時が近いメモをグループ化
+ * @param notes 作成日時で降順ソートされたメモのリスト
+ */
 function createNoteGroup(notes: Note[]): Note[][] {
-  return notes.map((x) => [x])
+  return notes.reduce((accumulator, currrent) => {
+    if (accumulator.length === 0) return [[currrent]]
+
+    const lastGroup = accumulator[accumulator.length - 1]
+    const lastNote = lastGroup[lastGroup.length - 1]
+
+    if (
+      lastNote.createdAt.getTime() - currrent.createdAt.getTime() <
+      3000 * 60 /* 3分未満なら同グループ化 */
+    )
+      lastGroup.push(currrent)
+    else accumulator.push([currrent])
+
+    return accumulator
+  }, new Array<Note[]>())
 }
 
 function useDisplayMode(

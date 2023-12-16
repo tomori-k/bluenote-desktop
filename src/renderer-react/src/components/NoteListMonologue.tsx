@@ -36,10 +36,10 @@ export default function NoteListMonologue({
   }, [refLoading.current])
 
   return (
-    <ul className="flex h-full flex-col-reverse overflow-y-auto">
+    <ul className="flex h-full flex-col-reverse gap-y-4 overflow-y-auto">
       {noteGroups.map((noteGroup) => (
         <li key={noteGroup[0].id} className="">
-          <ul>
+          <ul className="flex flex-col-reverse">
             {noteGroup.map((note) => (
               <li key={note.id}>{note.content}</li>
             ))}
