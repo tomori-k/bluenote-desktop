@@ -28,7 +28,9 @@ function App() {
       <div className="grid grid-cols-[auto_1fr_auto_auto_auto] grid-rows-[minmax(0,_1fr)]">
         <SideMenu
           onThreadSelected={(x) => setSelection({ thread: x, note: null })}
+          onTrashClicked={() => setIsTrashViewOpen(true)}
         />
+
         <ThreadView
           thread={selection.thread}
           key={selection.thread?.id}
@@ -44,11 +46,13 @@ function App() {
             />
           </Closable>
         )}
+
         {isSearchViewOpen && (
           <Closable onClose={() => setIsSearchViewOpen(false)}>
             <Search />
           </Closable>
         )}
+
         {isTrashViewOpen && (
           <Closable onClose={() => setIsTrashViewOpen(false)}>
             <Trash />
