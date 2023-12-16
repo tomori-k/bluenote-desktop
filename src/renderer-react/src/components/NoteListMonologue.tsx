@@ -5,12 +5,14 @@ type NoteListMonologueProps = {
   noteGroups: Note[][]
   hasLoadedAll: boolean
   onReachedLast: () => void
+  onNoteClicked: (note: Note) => void
 }
 
 export default function NoteListMonologue({
   noteGroups,
   hasLoadedAll,
   onReachedLast,
+  onNoteClicked,
 }: NoteListMonologueProps) {
   const refLoading = useRef<HTMLLIElement>(null)
   const refOnReachedLast = useRef(() => {})
@@ -41,7 +43,7 @@ export default function NoteListMonologue({
         <li key={noteGroup[0].id} className="">
           <ul className="flex flex-col-reverse">
             {noteGroup.map((note, i) => (
-              <li key={note.id}>
+              <li key={note.id} onClick={() => onNoteClicked(note)}>
                 {i === noteGroup.length - 1 && (
                   <p>{note.createdAt.toUTCString()}</p>
                 )}

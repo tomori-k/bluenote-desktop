@@ -5,13 +5,19 @@ import Search from './components/Search'
 import Trash from './components/Trash'
 import Closable from './components/Closable'
 import { useState } from 'react'
-import { Thread } from '@prisma/client'
+import { Note, Thread } from '@prisma/client'
 
 function App() {
-  const [isTreeViewOpen, setIsTreeViewOpen] = useState(false)
   const [isSearchViewOpen, setIsSearchViewOpen] = useState(false)
   const [isTrashViewOpen, setIsTrashViewOpen] = useState(false)
-  const [selectedThread, setSelectedThread] = useState<Thread | null>(null)
+  const [selection, setSelection] = useState<{
+    thread: Thread | null
+    note: Note | null
+  }>({ thread: null, note: null })
+
+  function onNoteInThreadClicked(note: Note) {
+    setSelection({ ...selection, note })
+  }
 
   return (
     <div className="grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
@@ -20,12 +26,22 @@ function App() {
         <input type="text" placeholder="検索..." />
       </div>
       <div className="grid grid-cols-[auto_1fr_auto_auto_auto] grid-rows-[minmax(0,_1fr)]">
-        <SideMenu onThreadSelected={(x) => setSelectedThread(x)} />
-        <ThreadView thread={selectedThread} key={selectedThread?.id} />
+        <SideMenu
+          onThreadSelected={(x) => setSelection({ thread: x, note: null })}
+        />
+        <ThreadView
+          thread={selection.thread}
+          key={selection.thread?.id}
+          onNoteClicked={onNoteInThreadClicked}
+        />
 
-        {isTreeViewOpen && (
-          <Closable onClose={() => setIsTreeViewOpen(false)}>
-            <Tree />
+        {selection.thread != null && selection.note != null && (
+          <Closable onClose={() => setSelection({ ...selection, note: null })}>
+            <Tree
+              thread={selection.thread}
+              parentNote={selection.note}
+              key={selection.note.id}
+            />
           </Closable>
         )}
         {isSearchViewOpen && (

@@ -6,9 +6,10 @@ import { useMemo, useState } from 'react'
 
 type ThreadViewProps = {
   thread: Thread | null
+  onNoteClicked: (note: Note) => void
 }
 
-function useNotePagination(
+export function useNotePagination(
   loadNext: (lastId: string | null, count: number) => Promise<Note[]>
 ) {
   const count = 100 // ページ単位
@@ -41,7 +42,7 @@ function useNotePagination(
  * 作成日時が近いメモをグループ化
  * @param notes 作成日時で降順ソートされたメモのリスト
  */
-function createNoteGroup(notes: Note[]): Note[][] {
+export function createNoteGroup(notes: Note[]): Note[][] {
   return notes.reduce((accumulator, currrent) => {
     if (accumulator.length === 0) return [[currrent]]
 
@@ -59,7 +60,7 @@ function createNoteGroup(notes: Note[]): Note[][] {
   }, new Array<Note[]>())
 }
 
-function useDisplayMode(
+export function useDisplayMode(
   notes: Note[],
   displayMode: string | undefined
 ): ['scrap', Note[]] | ['monologue', Note[][]] {
@@ -74,7 +75,7 @@ function useDisplayMode(
   }, [notes, mode])
 }
 
-export default function ThreadView({ thread }: ThreadViewProps) {
+export default function ThreadView({ thread, onNoteClicked }: ThreadViewProps) {
   const [createdNotes, setCreatedNotes] = useState<Note[]>([])
   const [hasErrorOccuredOnCreate, setHasErrorOccuredOnCreate] = useState(false)
   const {
@@ -120,12 +121,14 @@ export default function ThreadView({ thread }: ThreadViewProps) {
           notes={notes}
           hasLoadedAll={hasLoadedAll}
           onReachedLast={onReachedLast}
+          onNoteClicked={onNoteClicked}
         />
       ) : (
         <NoteListMonologue
           noteGroups={notes}
           hasLoadedAll={hasLoadedAll}
           onReachedLast={onReachedLast}
+          onNoteClicked={onNoteClicked}
         />
       )}
 
