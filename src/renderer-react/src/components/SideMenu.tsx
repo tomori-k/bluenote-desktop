@@ -12,7 +12,7 @@ type ContextMenuProps = {
   onClose: () => void
 }
 
-function ContextMenu({ position, children, onClose }: ContextMenuProps) {
+export function ContextMenu({ position, children, onClose }: ContextMenuProps) {
   return (
     <div className="absolute left-0 top-0 h-screen w-screen" onClick={onClose}>
       <div
