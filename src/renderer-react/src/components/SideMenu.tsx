@@ -27,8 +27,11 @@ function ContextMenu({ position, children, onClose }: ContextMenuProps) {
 }
 
 type ThreadWithState = Thread & { isRenaming: boolean }
+type SideMenuProps = {
+  onThreadSelected: (thread: Thread) => void
+}
 
-export default function SideMenu() {
+export default function SideMenu({ onThreadSelected }: SideMenuProps) {
   const [threads, setThreads] = useState<ThreadWithState[]>([])
   const [hasErrorOccured, setHasErrorOccured] = useState(false)
   const [contextMenuState, setContextMenuState] = useState<{
@@ -163,7 +166,7 @@ export default function SideMenu() {
       <ul>
         {threads.map((thread) => {
           return (
-            <li key={thread.id}>
+            <li key={thread.id} onClick={() => onThreadSelected(thread)}>
               {!thread.isRenaming && thread.name}
               {thread.isRenaming && (
                 <input
