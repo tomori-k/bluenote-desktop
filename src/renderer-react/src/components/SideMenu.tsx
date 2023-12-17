@@ -16,7 +16,7 @@ export function ContextMenu({ position, children, onClose }: ContextMenuProps) {
   return (
     <div className="absolute left-0 top-0 h-screen w-screen" onClick={onClose}>
       <div
-        className="absolute"
+        className="bg-midnight-800 border-midnight-600 absolute z-10 rounded-md border"
         style={{ left: `${position.left}px`, top: `${position.top}px` }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -26,13 +26,81 @@ export function ContextMenu({ position, children, onClose }: ContextMenuProps) {
   )
 }
 
+type ContextMenuItemProps = {
+  children: React.ReactNode
+  onClick?: () => void
+}
+
+export function ContextMenuItem({ children, onClick }: ContextMenuItemProps) {
+  return (
+    <li
+      className="hover:bg-midnight-500 px-4 py-1 text-sm first:pt-2 last:pb-2"
+      onClick={onClick}
+    >
+      {children}
+    </li>
+  )
+}
+
+type RadioButtonWithCheckmarkProps = {
+  name: string
+  value: string
+  label: string
+  checked: boolean
+  onChange: () => void
+}
+
+function RadioButtonWithCheckmark({
+  name,
+  value,
+  label,
+  checked,
+  onChange,
+}: RadioButtonWithCheckmarkProps) {
+  return (
+    <label className="flex items-center justify-between gap-10" htmlFor={value}>
+      {label}
+      <input
+        className="invisible checked:visible"
+        name={name}
+        id={value}
+        type="radio"
+        checked={checked}
+        onChange={onChange}
+      />
+    </label>
+  )
+}
+
+type SideMenuLiProps = {
+  children: React.ReactNode
+  onClick: () => void
+}
+
+/**
+ * サイドメニューのトップレベル li 要素
+ * @param props
+ */
+function SideMenuLi({ children, onClick }: SideMenuLiProps) {
+  return (
+    <li
+      className="flex h-7 items-center justify-between px-1 text-sm"
+      onClick={onClick}
+    >
+      {children}
+    </li>
+  )
+}
+
 type ThreadWithState = Thread & { isRenaming: boolean }
 type SideMenuProps = {
+  selectedThraed: Thread | null
   onThreadSelected: (thread: Thread) => void
   onTrashClicked: () => void
 }
 
 export default function SideMenu({
+  selectedThraed,
   onThreadSelected,
   onTrashClicked,
 }: SideMenuProps) {
@@ -157,11 +225,11 @@ export default function SideMenu({
   }
 
   return (
-    <div>
-      <div className="flex">
-        <h2>スレッド</h2>
+    <div className="bg-midnight-950 w-52 px-2">
+      <div className="flex h-9 items-center justify-between">
+        <h2 className="pl-1 text-base">スレッド</h2>
         <button type="button" onClick={onNewThreadClicked}>
-          新規スレッド
+          +
         </button>
       </div>
 
@@ -170,7 +238,15 @@ export default function SideMenu({
       <ul>
         {threads.map((thread) => {
           return (
-            <li key={thread.id} onClick={() => onThreadSelected(thread)}>
+            <li
+              className={
+                (thread === selectedThraed
+                  ? 'bg-midnight-500 rounded-md'
+                  : '') + ' flex h-8 items-center justify-between px-3 text-sm'
+              }
+              key={thread.id}
+              onClick={() => onThreadSelected(thread)}
+            >
               {!thread.isRenaming && thread.name}
               {thread.isRenaming && (
                 <input
@@ -203,36 +279,40 @@ export default function SideMenu({
             onClose={() => setContextMenuState(null)}
           >
             <ul>
-              <li onClick={onRenameClicked}>名前変更</li>
-              <li onClick={onRemoveClicked}>ごみ箱に移動</li>
-              <li>
-                <input
+              <ContextMenuItem onClick={onRenameClicked}>
+                名前変更
+              </ContextMenuItem>
+              <ContextMenuItem onClick={onRemoveClicked}>
+                ごみ箱に移動
+              </ContextMenuItem>
+              <ContextMenuItem>
+                <RadioButtonWithCheckmark
                   name="thread-display-mode"
-                  id="monologue"
-                  type="radio"
+                  value="monologue"
+                  label="Monologue"
                   checked={contextMenuState.thread.displayMode === 'monologue'}
                   onChange={() => onThreadDisplayModeChanged('monologue')}
                 />
-                <label htmlFor="monologue">Monologue</label>
-              </li>
-              <li>
-                <input
+              </ContextMenuItem>
+              <ContextMenuItem>
+                <RadioButtonWithCheckmark
                   name="thread-display-mode"
-                  id="scrap"
-                  type="radio"
+                  value="scrap"
+                  label="Scrap"
                   checked={contextMenuState.thread.displayMode === 'scrap'}
                   onChange={() => onThreadDisplayModeChanged('scrap')}
                 />
-                <label htmlFor="scrap">Scrap</label>
-              </li>
+              </ContextMenuItem>
             </ul>
           </ContextMenu>
         )}
       </ul>
 
+      <hr className="bg-midnight-700 my-3 h-px border-0" />
+
       <ul>
-        <li onClick={onTrashClicked}>ごみ箱</li>
-        <li>設定</li>
+        <SideMenuLi onClick={onTrashClicked}>ごみ箱</SideMenuLi>
+        <SideMenuLi>設定</SideMenuLi>
       </ul>
     </div>
   )

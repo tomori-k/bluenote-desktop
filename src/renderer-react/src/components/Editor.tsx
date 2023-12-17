@@ -17,17 +17,19 @@ export default function Editor({
   onCreateClicked,
 }: EditorProps) {
   return (
-    <div className="grid grid-cols-[1fr_auto]">
+    <div className="relative">
       <textarea
-        className="resize-none"
+        className="bg-midnight-900 h-40 w-full resize-none pl-4 pt-3 font-mono text-sm outline-none"
         itemType="text"
         placeholder="メモを入力"
         value={text}
         onChange={(e) => onTextChange(e.target.value)}
       />
-      <button type="button" onClick={onCreateClicked}>
-        {editorMode === EditorMode.Create ? '追加' : '編集'}
-      </button>
+      <div className="absolute bottom-0 right-0 p-4">
+        <button type="button" onClick={onCreateClicked}>
+          {editorMode === EditorMode.Create ? '追加' : '編集'}
+        </button>
+      </div>
     </div>
   )
 }

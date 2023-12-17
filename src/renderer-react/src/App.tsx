@@ -41,10 +41,13 @@ function App() {
   }
 
   return (
-    <div className="grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
-      <div>
-        <button type="button">メニュー</button>
+    <div className="text-midnight-50 grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
+      <div className="bg-midnight-900  relative flex h-12 items-center justify-center">
+        <button className="absolute left-0" type="button">
+          メニュー
+        </button>
         <input
+          className="bg-midnight-700 focus:border-midnight-400 h-8 w-80 rounded-lg pl-3 focus:border focus:outline-none"
           type="text"
           placeholder="検索..."
           // value={searchText}
@@ -53,6 +56,7 @@ function App() {
       </div>
       <div className="grid grid-cols-[auto_1fr_auto_auto_auto] grid-rows-[minmax(0,_1fr)]">
         <SideMenu
+          selectedThraed={selection.thread}
           onThreadSelected={(x) => setSelection({ thread: x, note: null })}
           onTrashClicked={() => setIsTrashViewOpen(true)}
         />
@@ -64,7 +68,10 @@ function App() {
         />
 
         {selection.thread != null && selection.note != null && (
-          <Closable onClose={() => setSelection({ ...selection, note: null })}>
+          <Closable
+            header={<p>{selection.note.content.slice(0, 10)}</p>}
+            onClose={() => setSelection({ ...selection, note: null })}
+          >
             <Tree
               thread={selection.thread}
               parentNote={selection.note}
@@ -74,7 +81,10 @@ function App() {
         )}
 
         {isSearchViewOpen && selection.thread != null && (
-          <Closable onClose={() => setIsSearchViewOpen(false)}>
+          <Closable
+            header={<p>検索結果</p>}
+            onClose={() => setIsSearchViewOpen(false)}
+          >
             <Search
               key={searchTextDebounced}
               thread={selection.thread}
@@ -84,7 +94,10 @@ function App() {
         )}
 
         {isTrashViewOpen && (
-          <Closable onClose={() => setIsTrashViewOpen(false)}>
+          <Closable
+            header={<p>ごみ箱</p>}
+            onClose={() => setIsTrashViewOpen(false)}
+          >
             <Trash />
           </Closable>
         )}

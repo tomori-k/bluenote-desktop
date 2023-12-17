@@ -65,15 +65,17 @@ export default function NoteListScrap({
 
   return (
     <>
-      <ul className="overflow-y-auto">
+      <ul className="divide-midnight-600 divide-y overflow-y-auto">
         {notes.map((x) => (
           <li
-            className="group relative"
+            className="hover:bg-midnight-700 group relative"
             key={x.id}
             onClick={() => onNoteClicked(x)}
           >
-            <p>{x.createdAt.toUTCString()}</p>
-            <p>{x.content}</p>
+            <p className="p-2 text-right text-xs">
+              {x.createdAt.toUTCString()}
+            </p>
+            <p className="pb-4 pl-4 text-sm">{x.content}</p>
             <button
               type="button"
               className="collapse absolute right-0 top-0 group-hover:visible"

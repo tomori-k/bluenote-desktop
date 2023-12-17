@@ -65,20 +65,29 @@ export default function NoteListMonologue({
 
   return (
     <>
-      <ul className="flex h-full flex-col-reverse gap-y-4 overflow-y-auto">
+      <ul className="flex h-full flex-col-reverse overflow-y-auto">
         {noteGroups.map((noteGroup) => (
-          <li key={noteGroup[0].id} className="">
+          <li key={noteGroup[0].id} className="py-2">
             <ul className="flex flex-col-reverse">
               {noteGroup.map((note, i) => (
                 <li
-                  className="group relative"
+                  className="hover:bg-midnight-700 group relative flex flex-row py-1"
                   key={note.id}
                   onClick={() => onNoteClicked(note)}
                 >
-                  {i === noteGroup.length - 1 && (
+                  {/* {i === noteGroup.length - 1 && (
                     <p>{note.createdAt.toUTCString()}</p>
-                  )}
-                  <p>{note.content}</p>
+                  )} */}
+                  <p
+                    className={
+                      (i !== noteGroup.length - 1
+                        ? 'invisible opacity-50 group-hover:visible'
+                        : '') + ' w-14 px-2 pt-[1px] text-xs'
+                    }
+                  >
+                    {note.createdAt.getHours()}:{note.createdAt.getMinutes()}
+                  </p>
+                  <p className="break-all text-sm">{note.content}</p>
                   <button
                     type="button"
                     className="collapse absolute right-0 top-0 group-hover:visible"

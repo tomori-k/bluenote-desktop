@@ -74,16 +74,19 @@ export default function Search({ thread, searchText }: SearchProps) {
 
   return (
     <div className="grid grid-rows-[auto_minmax(0,_1fr)]">
-      <div>
-        <p>検索結果</p>
-        {hasErrorOccured && <p className="text-red-600">問題が発生しました</p>}
-      </div>
+      {hasErrorOccured && <p className="text-red-600">問題が発生しました</p>}
 
-      <ul className="overflow-y-auto">
+      <ul className="divide-midnight-600 divide-y overflow-y-auto">
         {notes.map((note) => (
-          <li className="group relative" key={note.id}>
-            <p>{note.createdAt.toUTCString()}</p>
-            <p>{note.content}</p>
+          <li className="hover:bg-midnight-700" key={note.id}>
+            <div className="flex items-center justify-between gap-2 p-2">
+              <p className="bg-midnight-500 rounded-md px-4 py-1 text-xs">
+                スレッド名をここに
+              </p>
+              <p className="text-xs">{note.createdAt.toUTCString()}</p>
+            </div>
+
+            <p className="pb-4 pl-4 text-sm">{note.content}</p>
           </li>
         ))}
         {!hasLoadedAll && <li ref={refLoading}>Loading</li>}
