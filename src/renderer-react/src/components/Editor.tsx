@@ -1,11 +1,18 @@
+export enum EditorMode {
+  Create,
+  Edit,
+}
+
 type EditorProps = {
   text: string
+  editorMode: EditorMode
   onTextChange: (text: string) => void
   onCreateClicked: () => void
 }
 
 export default function Editor({
   text,
+  editorMode,
   onTextChange,
   onCreateClicked,
 }: EditorProps) {
@@ -19,7 +26,7 @@ export default function Editor({
         onChange={(e) => onTextChange(e.target.value)}
       />
       <button type="button" onClick={onCreateClicked}>
-        追加
+        {editorMode === EditorMode.Create ? '追加' : '編集'}
       </button>
     </div>
   )

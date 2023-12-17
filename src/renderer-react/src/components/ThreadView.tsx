@@ -1,5 +1,5 @@
 import { Note, Thread } from '@prisma/client'
-import Editor from './Editor'
+import Editor, { EditorMode } from './Editor'
 import NoteListScrap from './NoteListScrap'
 import NoteListMonologue from './NoteListMonologue'
 import { useMemo, useState } from 'react'
@@ -75,60 +75,137 @@ export function useDisplayMode(
   }, [notes, mode])
 }
 
-export default function ThreadView({ thread, onNoteClicked }: ThreadViewProps) {
-  const [createdNotes, setCreatedNotes] = useState<Note[]>([])
-  const [hasErrorOccuredOnCreate, setHasErrorOccuredOnCreate] = useState(false)
-  const {
-    notes: loadedNotes,
-    hasLoadedAll,
-    hasErrorOccured: hasErrorOccuredOnLoad,
-    loadMore,
-  } = useNotePagination(async (lastId, count) => {
-    if (thread == null) return []
-    return await window.api.findNotesInThread(thread, '', lastId, count, true)
-  })
-  const mergedNotes = useMemo(
-    () => [...createdNotes, ...loadedNotes],
-    [createdNotes, loadedNotes, thread?.displayMode]
-  )
-  const [displayMode, notes] = useDisplayMode(mergedNotes, thread?.displayMode)
-  const hasErrorOccured = useMemo(
-    () => hasErrorOccuredOnCreate || hasErrorOccuredOnLoad,
-    [hasErrorOccuredOnCreate, hasErrorOccuredOnLoad]
-  )
+export function useNoteList(
+  loadNext: (lastId: string | null, count: number) => Promise<Note[]>,
+  createNote: (content: string) => Promise<Note>,
+  editNote: (content: string, parentNote: Note) => Promise<Note>,
+  removeNote: (note: Note) => Promise<void>
+) {
+  const [hasErrorOccured, setHasErrorOccured] = useState(false)
+  const [hasLoadedAll, setHasLoadedAll] = useState(false)
+  const [notes, setNotes] = useState<Note[]>([])
   const [noteInput, setNoteInput] = useState('')
+  const [editTarget, setEditTarget] = useState<Note | null>(null)
+  const editorMode = editTarget != null ? EditorMode.Edit : EditorMode.Create
 
   async function onNoteCreateClicked() {
-    if (thread == null) return
+    // 追加
+    if (editTarget == null) {
+      try {
+        const created = await createNote(noteInput)
+        setNotes([created, ...notes])
+        setNoteInput('')
+      } catch (e) {
+        setHasErrorOccured(true)
+      }
+    }
+    // 編集
+    else {
+      try {
+        const edited = await editNote(noteInput, editTarget)
+        setNotes(notes.map((n) => (n.id === edited.id ? edited : n)))
+        setNoteInput('')
+      } catch (e) {
+        setHasErrorOccured(true)
+      } finally {
+        setEditTarget(null)
+      }
+    }
+  }
 
+  async function onNoteEditClicked(note: Note) {
+    setEditTarget(note)
+  }
+
+  async function onNoteRemoveClicked(note: Note) {
     try {
-      const created = await window.api.createNoteInThread(noteInput, thread)
-      setCreatedNotes([created, ...createdNotes])
-      setNoteInput('')
+      await removeNote(note)
+      setNotes(notes.filter((n) => n.id !== note.id))
     } catch (e) {
-      setHasErrorOccuredOnCreate(true)
+      setHasErrorOccured(true)
     }
   }
 
   async function onReachedLast() {
-    await loadMore()
+    const count = 100 // ページ単位
+
+    try {
+      const lastId = notes.length > 0 ? notes[notes.length - 1].id : null
+      const items = await loadNext(lastId, count)
+
+      setNotes([...notes, ...items])
+      if (items.length < count) setHasLoadedAll(true)
+    } catch (e) {
+      setHasErrorOccured(true)
+    }
   }
+
+  return {
+    notes,
+    hasLoadedAll,
+    hasErrorOccured,
+    noteInput,
+    editorMode,
+    onReachedLast,
+    onNoteCreateClicked,
+    onNoteEditClicked,
+    onNoteRemoveClicked,
+    setNoteInput,
+  }
+}
+
+export default function ThreadView({ thread, onNoteClicked }: ThreadViewProps) {
+  const {
+    notes,
+    hasLoadedAll,
+    hasErrorOccured,
+    noteInput,
+    editorMode,
+    onReachedLast,
+    onNoteCreateClicked,
+    onNoteEditClicked,
+    onNoteRemoveClicked,
+    setNoteInput,
+  } = useNoteList(
+    async (lastId, count) => {
+      return thread != null
+        ? await window.api.findNotesInThread(thread, '', lastId, count, true)
+        : []
+    },
+    async (content) => {
+      if (thread == null) throw new Error('thread is null')
+      return await window.api.createNoteInThread(content, thread)
+    },
+    async (content, parentNote) => {
+      return await window.api.editNote(content, parentNote)
+    },
+    async (note) => {
+      return await window.api.removeNote(note)
+    }
+  )
+
+  const [displayMode, notesTransformed] = useDisplayMode(
+    notes,
+    thread?.displayMode
+  )
 
   return (
     <div className="grid grid-rows-[minmax(0,_1fr)_auto]">
       {displayMode === 'scrap' ? (
         <NoteListScrap
-          notes={notes}
+          notes={notesTransformed}
           hasLoadedAll={hasLoadedAll}
           onReachedLast={onReachedLast}
           onNoteClicked={onNoteClicked}
         />
       ) : (
         <NoteListMonologue
-          noteGroups={notes}
+          noteGroups={notesTransformed}
           hasLoadedAll={hasLoadedAll}
           onReachedLast={onReachedLast}
           onNoteClicked={onNoteClicked}
+          onNoteEditClicked={onNoteEditClicked}
+          onNoteRemoveClicked={onNoteRemoveClicked}
         />
       )}
 
@@ -136,6 +213,7 @@ export default function ThreadView({ thread, onNoteClicked }: ThreadViewProps) {
 
       <Editor
         text={noteInput}
+        editorMode={editorMode}
         onTextChange={(text) => setNoteInput(text)}
         onCreateClicked={onNoteCreateClicked}
       />

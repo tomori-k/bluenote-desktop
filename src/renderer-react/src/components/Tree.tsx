@@ -1,7 +1,6 @@
 import { Note, Thread } from '@prisma/client'
 import Editor from './Editor'
-import { useDisplayMode, useNotePagination } from './ThreadView'
-import { useMemo, useState } from 'react'
+import { useDisplayMode, useNoteList } from './ThreadView'
 import NoteListMonologue from './NoteListMonologue'
 import NoteListScrap from './NoteListScrap'
 
@@ -10,44 +9,43 @@ type TreeViewrProps = {
   parentNote: Note
 }
 
-// TODO: ThreadView とほぼ同じなので共通化したい
 export default function Tree({ thread, parentNote }: TreeViewrProps) {
-  const [createdNotes, setCreatedNotes] = useState<Note[]>([])
-  const [hasErrorOccuredOnCreate, setHasErrorOccuredOnCreate] = useState(false)
   const {
-    notes: loadedNotes,
+    notes,
     hasLoadedAll,
-    hasErrorOccured: hasErrorOccuredOnLoad,
-    loadMore,
-  } = useNotePagination(async (lastId, count) => {
-    return await window.api.findNotesInTree(parentNote, '', lastId, count, true)
-  })
-  const mergedNotes = useMemo(
-    () => [...createdNotes, ...loadedNotes],
-    [createdNotes, loadedNotes, thread?.displayMode]
-  )
-  const [displayMode, notes] = useDisplayMode(mergedNotes, thread.displayMode)
-  const hasErrorOccured = useMemo(
-    () => hasErrorOccuredOnCreate || hasErrorOccuredOnLoad,
-    [hasErrorOccuredOnCreate, hasErrorOccuredOnLoad]
-  )
-  const [noteInput, setNoteInput] = useState('')
-
-  async function onNoteCreateClicked() {
-    if (thread == null) return
-
-    try {
-      const created = await window.api.createNoteInTree(noteInput, parentNote)
-      setCreatedNotes([created, ...createdNotes])
-      setNoteInput('')
-    } catch (e) {
-      setHasErrorOccuredOnCreate(true)
+    hasErrorOccured,
+    noteInput,
+    editorMode,
+    onReachedLast,
+    onNoteCreateClicked,
+    onNoteEditClicked,
+    onNoteRemoveClicked,
+    setNoteInput,
+  } = useNoteList(
+    async (lastId, count) => {
+      return await window.api.findNotesInTree(
+        parentNote,
+        '',
+        lastId,
+        count,
+        true
+      )
+    },
+    async (content) => {
+      return await window.api.createNoteInTree(content, parentNote)
+    },
+    async (content, parentNote) => {
+      return await window.api.editNote(content, parentNote)
+    },
+    async (note) => {
+      return await window.api.removeNote(note)
     }
-  }
+  )
 
-  async function onReachedLast() {
-    await loadMore()
-  }
+  const [displayMode, notesTransformed] = useDisplayMode(
+    notes,
+    thread?.displayMode
+  )
 
   return (
     <>
@@ -55,17 +53,19 @@ export default function Tree({ thread, parentNote }: TreeViewrProps) {
       <div className="grid grid-rows-[minmax(0,_1fr)_auto]">
         {displayMode === 'scrap' ? (
           <NoteListScrap
-            notes={notes}
+            notes={notesTransformed}
             hasLoadedAll={hasLoadedAll}
             onReachedLast={onReachedLast}
             onNoteClicked={() => {}}
           />
         ) : (
           <NoteListMonologue
-            noteGroups={notes}
+            noteGroups={notesTransformed}
             hasLoadedAll={hasLoadedAll}
             onReachedLast={onReachedLast}
             onNoteClicked={() => {}}
+            onNoteEditClicked={onNoteEditClicked}
+            onNoteRemoveClicked={onNoteRemoveClicked}
           />
         )}
 
@@ -73,6 +73,7 @@ export default function Tree({ thread, parentNote }: TreeViewrProps) {
 
         <Editor
           text={noteInput}
+          editorMode={editorMode}
           onTextChange={(text) => setNoteInput(text)}
           onCreateClicked={onNoteCreateClicked}
         />
