@@ -37,6 +37,7 @@ function ClosableTabHeader({ icon, title }: ClosableTabHeaderProps) {
 }
 
 function App() {
+  const [isSideMenuOpen, setIsSideMenuOpen] = useState(false)
   const [isSearchViewOpen, setIsSearchViewOpen] = useState(false)
   const [isTrashViewOpen, setIsTrashViewOpen] = useState(false)
   const [selection, setSelection] = useState<{
@@ -61,7 +62,11 @@ function App() {
   return (
     <div className="text-midnight-50 grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
       <div className="bg-midnight-900  relative flex h-12 items-center justify-center gap-4">
-        <button className="absolute left-4" type="button">
+        <button
+          className="absolute left-0 p-4"
+          type="button"
+          onClick={() => setIsSideMenuOpen(!isSideMenuOpen)}
+        >
           <HamburgerIcon />
         </button>
         <SearchIcon />
@@ -74,11 +79,15 @@ function App() {
         />
       </div>
       <div className="grid grid-cols-[auto_1fr_auto_auto_auto] grid-rows-[minmax(0,_1fr)]">
-        <SideMenu
-          selectedThraed={selection.thread}
-          onThreadSelected={(x) => setSelection({ thread: x, note: null })}
-          onTrashClicked={() => setIsTrashViewOpen(true)}
-        />
+        {isSideMenuOpen ? (
+          <SideMenu
+            selectedThraed={selection.thread}
+            onThreadSelected={(x) => setSelection({ thread: x, note: null })}
+            onTrashClicked={() => setIsTrashViewOpen(true)}
+          />
+        ) : (
+          <div />
+        )}
 
         <ThreadView
           thread={selection.thread}
