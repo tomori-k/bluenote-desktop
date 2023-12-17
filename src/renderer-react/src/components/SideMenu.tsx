@@ -1,5 +1,10 @@
 import { Thread } from '@prisma/client'
 import { useEffect, useState } from 'react'
+import ThreadIcon from './icons/ThreadIcon'
+import AddIcon from './icons/AddIcon'
+import MoreVerticalIcon from './icons/MoreVerticalIcon'
+import SettingsIcon from './icons/SettingsIcon'
+import DeleteIcon from './icons/DeleteIcon'
 
 type ContextMenuPosition = {
   left: number
@@ -83,10 +88,7 @@ type SideMenuLiProps = {
  */
 function SideMenuLi({ children, onClick }: SideMenuLiProps) {
   return (
-    <li
-      className="flex h-7 items-center justify-between px-1 text-sm"
-      onClick={onClick}
-    >
+    <li className="flex h-7 items-center gap-4 px-1 text-sm" onClick={onClick}>
       {children}
     </li>
   )
@@ -227,9 +229,12 @@ export default function SideMenu({
   return (
     <div className="bg-midnight-950 w-52 px-2">
       <div className="flex h-9 items-center justify-between">
-        <h2 className="pl-1 text-base">スレッド</h2>
-        <button type="button" onClick={onNewThreadClicked}>
-          +
+        <h2 className="flex items-center gap-3 pl-1 text-base">
+          <ThreadIcon />
+          スレッド
+        </h2>
+        <button className="pr-2" type="button" onClick={onNewThreadClicked}>
+          <AddIcon />
         </button>
       </div>
 
@@ -264,10 +269,11 @@ export default function SideMenu({
                 />
               )}
               <button
+                className="px-1"
                 type="button"
                 onClick={(e) => onThreadMenuClicked(e, thread)}
               >
-                ...
+                <MoreVerticalIcon />
               </button>
             </li>
           )
@@ -311,8 +317,14 @@ export default function SideMenu({
       <hr className="bg-midnight-700 my-3 h-px border-0" />
 
       <ul>
-        <SideMenuLi onClick={onTrashClicked}>ごみ箱</SideMenuLi>
-        <SideMenuLi>設定</SideMenuLi>
+        <SideMenuLi onClick={onTrashClicked}>
+          <DeleteIcon />
+          ごみ箱
+        </SideMenuLi>
+        <SideMenuLi>
+          <SettingsIcon />
+          設定
+        </SideMenuLi>
       </ul>
     </div>
   )

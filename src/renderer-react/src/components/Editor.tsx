@@ -1,3 +1,5 @@
+import EditIcon from './icons/EditIcon'
+
 export enum EditorMode {
   Create,
   Edit,
@@ -26,7 +28,12 @@ export default function Editor({
         onChange={(e) => onTextChange(e.target.value)}
       />
       <div className="absolute bottom-0 right-0 p-4">
-        <button type="button" onClick={onCreateClicked}>
+        <button
+          className="flex items-center gap-3 text-sm"
+          type="button"
+          onClick={onCreateClicked}
+        >
+          <EditIcon />
           {editorMode === EditorMode.Create ? '追加' : '編集'}
         </button>
       </div>

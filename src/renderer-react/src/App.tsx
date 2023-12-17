@@ -4,8 +4,12 @@ import Tree from './components/Tree'
 import Search from './components/Search'
 import Trash from './components/Trash'
 import Closable from './components/Closable'
+import HamburgerIcon from './components/icons/HamburgerIcon'
+import TextBulletListTreeIcon from './components/icons/TextBulletListTreeIcon'
 import { useEffect, useState } from 'react'
 import { Note, Thread } from '@prisma/client'
+import DeleteIcon from './components/icons/DeleteIcon'
+import SearchIcon from './components/icons/SearchIcon'
 
 function useDebounce<T>(value: T) {
   const [debouncedValue, setDebouncedValue] = useState(value)
@@ -16,6 +20,20 @@ function useDebounce<T>(value: T) {
   }, [value])
 
   return debouncedValue
+}
+
+type ClosableTabHeaderProps = {
+  icon: React.ReactNode
+  title: string
+}
+
+function ClosableTabHeader({ icon, title }: ClosableTabHeaderProps) {
+  return (
+    <div className="flex items-center gap-4 pl-4">
+      {icon}
+      {title}
+    </div>
+  )
 }
 
 function App() {
@@ -42,10 +60,11 @@ function App() {
 
   return (
     <div className="text-midnight-50 grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
-      <div className="bg-midnight-900  relative flex h-12 items-center justify-center">
-        <button className="absolute left-0" type="button">
-          メニュー
+      <div className="bg-midnight-900  relative flex h-12 items-center justify-center gap-4">
+        <button className="absolute left-4" type="button">
+          <HamburgerIcon />
         </button>
+        <SearchIcon />
         <input
           className="bg-midnight-700 focus:border-midnight-400 h-8 w-80 rounded-lg pl-3 focus:border focus:outline-none"
           type="text"
@@ -69,7 +88,12 @@ function App() {
 
         {selection.thread != null && selection.note != null && (
           <Closable
-            header={<p>{selection.note.content.slice(0, 10)}</p>}
+            header={
+              <ClosableTabHeader
+                icon={<TextBulletListTreeIcon />}
+                title={selection.note.content.slice(0, 10)}
+              />
+            }
             onClose={() => setSelection({ ...selection, note: null })}
           >
             <Tree
@@ -82,7 +106,9 @@ function App() {
 
         {isSearchViewOpen && selection.thread != null && (
           <Closable
-            header={<p>検索結果</p>}
+            header={
+              <ClosableTabHeader icon={<SearchIcon />} title="検索結果" />
+            }
             onClose={() => setIsSearchViewOpen(false)}
           >
             <Search
@@ -95,7 +121,7 @@ function App() {
 
         {isTrashViewOpen && (
           <Closable
-            header={<p>ごみ箱</p>}
+            header={<ClosableTabHeader icon={<DeleteIcon />} title="ごみ箱" />}
             onClose={() => setIsTrashViewOpen(false)}
           >
             <Trash />
