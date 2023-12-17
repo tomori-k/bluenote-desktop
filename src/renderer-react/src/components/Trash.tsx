@@ -120,23 +120,25 @@ export default function Trash() {
 
       <ul className="divide-midnight-600 divide-y overflow-y-auto">
         {notes.map((note) => (
-          <li className="hover:bg-midnight-700 group relative" key={note.id}>
-            <div className="flex items-center justify-between gap-2 p-2">
-              <p className="bg-midnight-500 rounded-md px-4 py-1 text-xs">
-                スレッド名をここに
-              </p>
-              <p className="text-xs">{note.createdAt.toUTCString()}</p>
-            </div>
+          <li className="first:pt-5">
+            <div className="hover:bg-midnight-700 group relative" key={note.id}>
+              <div className="flex items-center justify-between gap-2 p-2">
+                <p className="bg-midnight-500 rounded-md px-4 py-1 text-xs">
+                  スレッド名をここに
+                </p>
+                <p className="text-xs">{note.createdAt.toUTCString()}</p>
+              </div>
 
-            <p className="pb-4 pl-4 text-sm">{note.content}</p>
-            <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
-              <HoverMenuItem onClick={() => onNoteRestoreClicked(note)}>
-                <ArrowUndoIcon />
-              </HoverMenuItem>
-              <HoverMenuItem onClick={() => onNoteDeleteClicked(note)}>
-                <DeleteForeverIcon />
-              </HoverMenuItem>
-            </HoverMenu>
+              <p className="pb-4 pl-4 text-sm">{note.content}</p>
+              <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
+                <HoverMenuItem onClick={() => onNoteRestoreClicked(note)}>
+                  <ArrowUndoIcon />
+                </HoverMenuItem>
+                <HoverMenuItem onClick={() => onNoteDeleteClicked(note)}>
+                  <DeleteForeverIcon />
+                </HoverMenuItem>
+              </HoverMenu>
+            </div>
           </li>
         ))}
         {!hasLoadedAll && <li ref={refLoading}>Loading</li>}
