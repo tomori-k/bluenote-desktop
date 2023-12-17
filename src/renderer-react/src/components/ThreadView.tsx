@@ -198,6 +198,8 @@ export default function ThreadView({ thread, onNoteClicked }: ThreadViewProps) {
           hasLoadedAll={hasLoadedAll}
           onReachedLast={onReachedLast}
           onNoteClicked={onNoteClicked}
+          onNoteEditClicked={onNoteEditClicked}
+          onNoteRemoveClicked={onNoteRemoveClicked}
         />
       ) : (
         <NoteListMonologue

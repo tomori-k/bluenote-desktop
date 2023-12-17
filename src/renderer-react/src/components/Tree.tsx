@@ -44,40 +44,43 @@ export default function Tree({ thread, parentNote }: TreeViewrProps) {
 
   const [displayMode, notesTransformed] = useDisplayMode(
     notes,
-    thread?.displayMode
+    thread.displayMode
   )
 
+  console.log(displayMode)
+
   return (
-    <>
+    <div className="grid grid-rows-[auto_minmax(0,_1fr)_auto]">
       <p>{parentNote.content}</p>
-      <div className="grid grid-rows-[minmax(0,_1fr)_auto]">
-        {displayMode === 'scrap' ? (
-          <NoteListScrap
-            notes={notesTransformed}
-            hasLoadedAll={hasLoadedAll}
-            onReachedLast={onReachedLast}
-            onNoteClicked={() => {}}
-          />
-        ) : (
-          <NoteListMonologue
-            noteGroups={notesTransformed}
-            hasLoadedAll={hasLoadedAll}
-            onReachedLast={onReachedLast}
-            onNoteClicked={() => {}}
-            onNoteEditClicked={onNoteEditClicked}
-            onNoteRemoveClicked={onNoteRemoveClicked}
-          />
-        )}
 
-        {hasErrorOccured && <p className="text-red-600">問題が発生しました</p>}
-
-        <Editor
-          text={noteInput}
-          editorMode={editorMode}
-          onTextChange={(text) => setNoteInput(text)}
-          onCreateClicked={onNoteCreateClicked}
+      {displayMode === 'scrap' ? (
+        <NoteListScrap
+          notes={notesTransformed}
+          hasLoadedAll={hasLoadedAll}
+          onReachedLast={onReachedLast}
+          onNoteClicked={() => {}}
+          onNoteEditClicked={onNoteEditClicked}
+          onNoteRemoveClicked={onNoteRemoveClicked}
         />
-      </div>
-    </>
+      ) : (
+        <NoteListMonologue
+          noteGroups={notesTransformed}
+          hasLoadedAll={hasLoadedAll}
+          onReachedLast={onReachedLast}
+          onNoteClicked={() => {}}
+          onNoteEditClicked={onNoteEditClicked}
+          onNoteRemoveClicked={onNoteRemoveClicked}
+        />
+      )}
+
+      {hasErrorOccured && <p className="text-red-600">問題が発生しました</p>}
+
+      <Editor
+        text={noteInput}
+        editorMode={editorMode}
+        onTextChange={(text) => setNoteInput(text)}
+        onCreateClicked={onNoteCreateClicked}
+      />
+    </div>
   )
 }
