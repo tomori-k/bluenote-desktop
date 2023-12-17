@@ -1,6 +1,5 @@
-import { ContextMenu } from './SideMenu'
 import { Note } from '@prisma/client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { HoverMenu, HoverMenuItem } from './HoverMenu'
 import DeleteIcon from './icons/DeleteIcon'
 import EditIcon from './icons/EditIcon'

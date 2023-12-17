@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { ContextMenu, ContextMenuItem } from './SideMenu'
 import { Note } from '@prisma/client'
 import ArrowUndoIcon from './icons/ArrowUndoIcon'
 import DeleteForeverIcon from './icons/DeleteForeverIcon'
@@ -69,30 +68,9 @@ export default function Trash() {
     (note) => window.api.restoreNote(note),
     (note) => window.api.deleteNote(note)
   )
-  const [contextMenuState, setContextMenuState] = useState<{
-    left: number
-    top: number
-    note: Note
-  } | null>(null)
 
   const refLoading = useRef<HTMLLIElement>(null)
   const refOnReachedLast = useRef(() => {})
-
-  function onNoteMenuClicked(
-    e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
-    note: Note
-  ) {
-    e.stopPropagation()
-
-    const bounds = e.currentTarget.getBoundingClientRect()
-
-    // TODO: right で指定したい
-    setContextMenuState({
-      left: bounds.left - 100,
-      top: bounds.top,
-      note,
-    })
-  }
 
   refOnReachedLast.current = onReachedLast
 
@@ -143,26 +121,6 @@ export default function Trash() {
         ))}
         {!hasLoadedAll && <li ref={refLoading}>Loading</li>}
       </ul>
-
-      {contextMenuState && (
-        <ContextMenu
-          position={contextMenuState}
-          onClose={() => setContextMenuState(null)}
-        >
-          <ul>
-            <ContextMenuItem
-              onClick={() => onNoteRestoreClicked(contextMenuState.note)}
-            >
-              もとに戻す
-            </ContextMenuItem>
-            <ContextMenuItem
-              onClick={() => onNoteDeleteClicked(contextMenuState.note)}
-            >
-              完全に削除
-            </ContextMenuItem>
-          </ul>
-        </ContextMenu>
-      )}
     </div>
   )
 }
