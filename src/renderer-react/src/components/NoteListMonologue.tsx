@@ -60,7 +60,7 @@ export default function NoteListMonologue({
                     className={
                       (i !== noteGroup.length - 1
                         ? 'invisible opacity-50 group-hover:visible'
-                        : '') + ' w-14 px-2 pt-[1px] text-xs'
+                        : '') + ' text-midnight-200 w-14 px-2 pt-[1px] text-xs'
                     }
                   >
                     {note.createdAt.getHours()}:{note.createdAt.getMinutes()}
