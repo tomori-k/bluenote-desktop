@@ -48,9 +48,7 @@ export default function Tree({ thread, parentNote }: TreeViewrProps) {
   )
 
   return (
-    <div className="bg-midnight-800 grid grid-rows-[auto_minmax(0,_1fr)_auto]">
-      <p>{parentNote.content}</p>
-
+    <div className="bg-midnight-800 grid grid-rows-[minmax(0,_1fr)_auto]">
       {displayMode === 'scrap' ? (
         <NoteListScrap
           notes={notesTransformed}
