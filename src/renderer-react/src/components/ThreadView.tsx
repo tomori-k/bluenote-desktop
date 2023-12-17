@@ -115,6 +115,7 @@ export function useNoteList(
 
   async function onNoteEditClicked(note: Note) {
     setEditTarget(note)
+    if (noteInput == '') setNoteInput(note.content)
   }
 
   async function onNoteRemoveClicked(note: Note) {
