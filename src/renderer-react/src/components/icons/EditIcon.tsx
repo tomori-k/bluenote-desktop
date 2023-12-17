@@ -1,7 +1,7 @@
-export default function EditIcon() {
+export default function EditIcon({ className }: { className?: string }) {
   return (
     <svg
-      className="fill-midnight-50 h-5 w-5"
+      className={className + ' fill-midnight-50 h-5 w-5'}
       viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg"
     >

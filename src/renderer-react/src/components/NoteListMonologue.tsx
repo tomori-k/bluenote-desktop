@@ -1,6 +1,10 @@
 import { ContextMenu } from './SideMenu'
 import { Note } from '@prisma/client'
 import { useEffect, useRef, useState } from 'react'
+import { HoverMenu, HoverMenuItem } from './HoverMenu'
+import DeleteIcon from './icons/DeleteIcon'
+import EditIcon from './icons/EditIcon'
+import TextBulletListTreeIcon from './icons/TextBulletListTreeIcon'
 
 type NoteListMonologueProps = {
   noteGroups: Note[][]
@@ -21,27 +25,6 @@ export default function NoteListMonologue({
 }: NoteListMonologueProps) {
   const refLoading = useRef<HTMLLIElement>(null)
   const refOnReachedLast = useRef(() => {})
-  const [contextMenuState, setContextMenuState] = useState<{
-    left: number
-    top: number
-    note: Note
-  } | null>(null)
-
-  function onNoteMenuClicked(
-    e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
-    note: Note
-  ) {
-    e.stopPropagation()
-
-    const bounds = e.currentTarget.getBoundingClientRect()
-
-    // TODO: right で指定したい
-    setContextMenuState({
-      left: bounds.left - 100,
-      top: bounds.top,
-      note,
-    })
-  }
 
   refOnReachedLast.current = onReachedLast
 
@@ -73,11 +56,7 @@ export default function NoteListMonologue({
                 <li
                   className="hover:bg-midnight-700 group relative flex flex-row py-1"
                   key={note.id}
-                  onClick={() => onNoteClicked(note)}
                 >
-                  {/* {i === noteGroup.length - 1 && (
-                    <p>{note.createdAt.toUTCString()}</p>
-                  )} */}
                   <p
                     className={
                       (i !== noteGroup.length - 1
@@ -88,13 +67,17 @@ export default function NoteListMonologue({
                     {note.createdAt.getHours()}:{note.createdAt.getMinutes()}
                   </p>
                   <p className="break-all text-sm">{note.content}</p>
-                  <button
-                    type="button"
-                    className="collapse absolute right-0 top-0 group-hover:visible"
-                    onClick={(e) => onNoteMenuClicked(e, note)}
-                  >
-                    ...
-                  </button>
+                  <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
+                    <HoverMenuItem onClick={() => onNoteClicked(note)}>
+                      <TextBulletListTreeIcon />
+                    </HoverMenuItem>
+                    <HoverMenuItem onClick={() => onNoteEditClicked(note)}>
+                      <EditIcon className="h-4 w-4" />
+                    </HoverMenuItem>
+                    <HoverMenuItem onClick={() => onNoteRemoveClicked(note)}>
+                      <DeleteIcon />
+                    </HoverMenuItem>
+                  </HoverMenu>
                 </li>
               ))}
             </ul>
@@ -102,21 +85,6 @@ export default function NoteListMonologue({
         ))}
         {!hasLoadedAll && <li ref={refLoading}>Loading</li>}
       </ul>
-      {contextMenuState && (
-        <ContextMenu
-          position={contextMenuState}
-          onClose={() => setContextMenuState(null)}
-        >
-          <ul>
-            <li onClick={() => onNoteEditClicked(contextMenuState.note)}>
-              編集
-            </li>
-            <li onClick={() => onNoteRemoveClicked(contextMenuState.note)}>
-              ごみ箱に移動
-            </li>
-          </ul>
-        </ContextMenu>
-      )}
     </>
   )
 }

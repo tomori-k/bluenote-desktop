@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { ContextMenu, ContextMenuItem } from './SideMenu'
 import { Note } from '@prisma/client'
+import ArrowUndoIcon from './icons/ArrowUndoIcon'
+import DeleteForeverIcon from './icons/DeleteForeverIcon'
+import { HoverMenu, HoverMenuItem } from './HoverMenu'
 
 function useTrashNoteList(
   loadNext: (lastId: string | null, count: number) => Promise<Note[]>,
@@ -126,13 +129,14 @@ export default function Trash() {
             </div>
 
             <p className="pb-4 pl-4 text-sm">{note.content}</p>
-            <button
-              type="button"
-              className="collapse absolute right-0 top-0 group-hover:visible"
-              onClick={(e) => onNoteMenuClicked(e, note)}
-            >
-              ...
-            </button>
+            <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
+              <HoverMenuItem onClick={() => onNoteRestoreClicked(note)}>
+                <ArrowUndoIcon />
+              </HoverMenuItem>
+              <HoverMenuItem onClick={() => onNoteDeleteClicked(note)}>
+                <DeleteForeverIcon />
+              </HoverMenuItem>
+            </HoverMenu>
           </li>
         ))}
         {!hasLoadedAll && <li ref={refLoading}>Loading</li>}

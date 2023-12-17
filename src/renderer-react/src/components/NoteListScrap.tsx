@@ -1,6 +1,9 @@
 import { Note } from '@prisma/client'
-import { useRef, useEffect, useState } from 'react'
-import { ContextMenu } from './SideMenu'
+import { useRef, useEffect } from 'react'
+import TextBulletListTreeIcon from './icons/TextBulletListTreeIcon'
+import EditIcon from './icons/EditIcon'
+import DeleteIcon from './icons/DeleteIcon'
+import { HoverMenu, HoverMenuItem } from './HoverMenu'
 
 type NoteListScrapProps = {
   notes: Note[]
@@ -21,27 +24,6 @@ export default function NoteListScrap({
 }: NoteListScrapProps) {
   const refLoading = useRef<HTMLLIElement>(null)
   const refOnReachedLast = useRef(() => {})
-  const [contextMenuState, setContextMenuState] = useState<{
-    left: number
-    top: number
-    note: Note
-  } | null>(null)
-
-  function onNoteMenuClicked(
-    e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
-    note: Note
-  ) {
-    e.stopPropagation()
-
-    const bounds = e.currentTarget.getBoundingClientRect()
-
-    // TODO: right で指定したい
-    setContextMenuState({
-      left: bounds.left - 100,
-      top: bounds.top,
-      note,
-    })
-  }
 
   refOnReachedLast.current = onReachedLast
 
@@ -67,41 +49,26 @@ export default function NoteListScrap({
     <>
       <ul className="divide-midnight-600 divide-y overflow-y-auto">
         {notes.map((x) => (
-          <li
-            className="hover:bg-midnight-700 group relative"
-            key={x.id}
-            onClick={() => onNoteClicked(x)}
-          >
+          <li className="hover:bg-midnight-700 group relative" key={x.id}>
             <p className="p-2 text-right text-xs">
               {x.createdAt.toUTCString()}
             </p>
             <p className="pb-4 pl-4 text-sm">{x.content}</p>
-            <button
-              type="button"
-              className="collapse absolute right-0 top-0 group-hover:visible"
-              onClick={(e) => onNoteMenuClicked(e, x)}
-            >
-              ...
-            </button>
+            <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
+              <HoverMenuItem onClick={() => onNoteClicked(x)}>
+                <TextBulletListTreeIcon />
+              </HoverMenuItem>
+              <HoverMenuItem onClick={() => onNoteEditClicked(x)}>
+                <EditIcon className="h-4 w-4" />
+              </HoverMenuItem>
+              <HoverMenuItem onClick={() => onNoteRemoveClicked(x)}>
+                <DeleteIcon />
+              </HoverMenuItem>
+            </HoverMenu>
           </li>
         ))}
         {!hasLoadedAll && <li ref={refLoading}>Loading</li>}
       </ul>
-      {contextMenuState && (
-        <ContextMenu
-          position={contextMenuState}
-          onClose={() => setContextMenuState(null)}
-        >
-          <ul>
-            <li onClick={() => onNoteEditClicked(contextMenuState.note)}>
-              編集
-            </li>
-            <li onClick={() => onNoteRemoveClicked(contextMenuState.note)}>
-              ごみ箱に移動
-            </li>
-          </ul>
-        </ContextMenu>
-      )}
     </>
   )
 }
