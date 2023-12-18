@@ -49,7 +49,7 @@ export default function NoteListScrap({
     <>
       <ul className="divide-midnight-600 divide-y overflow-y-auto">
         {notes.map((x) => (
-          <li className="first:pt-5">
+          <li key={x.id} className="first:pt-5">
             <div className="hover:bg-midnight-700 group relative" key={x.id}>
               <p className="p-2 text-right text-xs">
                 {x.createdAt.toUTCString()}
