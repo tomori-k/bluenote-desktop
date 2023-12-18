@@ -6,5 +6,8 @@
   },
   "[prisma]": { "editor.defaultFormatter": "Prisma.prisma" },
   "jest.autoRevealOutput": "on-exec-error",
-  "jest.autoRun": "off"
+  "jest.autoRun": "off",
+  "files.associations": {
+    "*.css": "tailwindcss"
+  }
 }
