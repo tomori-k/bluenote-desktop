@@ -99,12 +99,14 @@ type SideMenuProps = {
   selectedThraed: Thread | null
   onThreadSelected: (thread: Thread) => void
   onTrashClicked: () => void
+  onSettingsClicked: () => void
 }
 
 export default function SideMenu({
   selectedThraed,
   onThreadSelected,
   onTrashClicked,
+  onSettingsClicked,
 }: SideMenuProps) {
   const [threads, setThreads] = useState<ThreadWithState[]>([])
   const [hasErrorOccured, setHasErrorOccured] = useState(false)
@@ -321,7 +323,7 @@ export default function SideMenu({
           <DeleteIcon />
           ごみ箱
         </SideMenuLi>
-        <SideMenuLi>
+        <SideMenuLi onClick={onSettingsClicked}>
           <SettingsIcon />
           設定
         </SideMenuLi>

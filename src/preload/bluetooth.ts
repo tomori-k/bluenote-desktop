@@ -1,5 +1,5 @@
 import { ipcRenderer } from 'electron'
-import { IpcChannel } from './channel'
+import { IpcChannel, NewIpcChannel } from './channel'
 
 type BluetoothDevice = {
   name: string
@@ -49,7 +49,10 @@ export const bluetooth = {
     ipcRenderer.invoke(IpcChannel.ListenSyncRequest)
   },
   startBluetoothScan() {
-    ipcRenderer.invoke(IpcChannel.StartBluetoothScan)
+    ipcRenderer.invoke(NewIpcChannel.StartBluetoothScan)
+  },
+  stopBluetoothScan() {
+    ipcRenderer.invoke(NewIpcChannel.StopBluetoothScan)
   },
   async getSyncDevices(): Promise<SyncDevice[]> {
     return await ipcRenderer.invoke(IpcChannel.GetSyncDevices)

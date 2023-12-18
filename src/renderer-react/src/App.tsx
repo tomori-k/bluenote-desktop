@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 import { Note, Thread } from '@prisma/client'
 import DeleteIcon from './components/icons/DeleteIcon'
 import SearchIcon from './components/icons/SearchIcon'
+import Settings from './components/Settings'
 
 function useDebounce<T>(value: T) {
   const [debouncedValue, setDebouncedValue] = useState(value)
@@ -40,6 +41,7 @@ function App() {
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false)
   const [isSearchViewOpen, setIsSearchViewOpen] = useState(false)
   const [isTrashViewOpen, setIsTrashViewOpen] = useState(false)
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [selection, setSelection] = useState<{
     thread: Thread | null
     note: Note | null
@@ -84,6 +86,7 @@ function App() {
             selectedThraed={selection.thread}
             onThreadSelected={(x) => setSelection({ thread: x, note: null })}
             onTrashClicked={() => setIsTrashViewOpen(true)}
+            onSettingsClicked={() => setIsSettingsModalOpen(true)}
           />
         ) : (
           <div />
@@ -137,7 +140,9 @@ function App() {
           </Closable>
         )}
       </div>
-      {/* TODO: 設定モーダル */}
+      {isSettingsModalOpen && (
+        <Settings onClose={() => setIsSettingsModalOpen(false)} />
+      )}
     </div>
   )
 }

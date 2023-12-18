@@ -26,3 +26,15 @@ export enum IpcChannel {
   RestoreNote = 'restore-note',
   DeleteNote = 'delete-note',
 }
+
+const _NewIpcChannel = {
+  StartBluetoothScan: 'start-bluetooth-scan',
+  StopBluetoothScan: 'stop-bluetooth-scan',
+} as const
+
+export type NewIpcChannel = (typeof _NewIpcChannel)[keyof typeof _NewIpcChannel]
+
+export const NewIpcChannel = {
+  ..._NewIpcChannel,
+  all: Object.values(_NewIpcChannel),
+}

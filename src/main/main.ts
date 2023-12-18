@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import * as bluetooth from 'bluenote-bluetooth'
-import { IpcChannel } from '../preload/channel'
+import { IpcChannel, NewIpcChannel } from '../preload/channel'
 import { PrismaClient } from '@prisma/client'
 import { DeviceService } from './services/device_service'
 import { ThreadService } from './services/thread_service'
@@ -153,6 +153,22 @@ const createWindow = async () => {
     bluetooth.respondToUpdateSyncedAtRequest()
   })
 
+  // これ完璧では？？
+  // 登録忘れがあると登録部分で型エラー
+  const IpcHandlers = {
+    [NewIpcChannel.StartBluetoothScan]: () => {
+      bluetooth.startBluetoothScan()
+    },
+    [NewIpcChannel.StopBluetoothScan]: () => {
+      bluetooth.stopBluetoothScan()
+    },
+  }
+
+  // ハンドラの登録
+  for (const channel of NewIpcChannel.all) {
+    ipcMain.handle(channel, IpcHandlers[channel])
+  }
+
   // setOnNoteUpdatesRequested(async (_, uuid) => {
   //   console.log(`Update requested from: ${uuid}`)
 
@@ -252,9 +268,9 @@ const createWindow = async () => {
     bluetooth.startInitServer(await deviceService.getMyUuid())
   })
 
-  ipcMain.handle(IpcChannel.StartBluetoothScan, async () => {
-    bluetooth.startBluetoothScan()
-  })
+  // ipcMain.handle(IpcChannel.StartBluetoothScan, async () => {
+  //   bluetooth.startBluetoothScan()
+  // })
 
   ipcMain.handle(IpcChannel.GetSyncDevices, async () => {
     const devices = await deviceService.getAllSyncEnabledDevices()
