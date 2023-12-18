@@ -324,7 +324,7 @@ export default function SideMenu({
           ごみ箱
         </SideMenuLi>
         <SideMenuLi onClick={onSettingsClicked}>
-          <SettingsIcon />
+          <SettingsIcon className="h-4 w-4" />
           設定
         </SideMenuLi>
       </ul>
