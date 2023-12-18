@@ -61,9 +61,9 @@ function App() {
 
   return (
     <div className="text-midnight-50 grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
-      <div className="bg-midnight-900  relative flex h-12 items-center justify-center gap-4">
+      <div className="bg-midnight-900 electron-drag relative flex h-12 items-center justify-center gap-4">
         <button
-          className="absolute left-0 p-4"
+          className="electron-no-drag absolute left-0 p-4"
           type="button"
           onClick={() => setIsSideMenuOpen(!isSideMenuOpen)}
         >
@@ -71,7 +71,7 @@ function App() {
         </button>
         <SearchIcon />
         <input
-          className="bg-midnight-700 focus:border-midnight-400 h-8 w-80 rounded-lg pl-3 focus:border focus:outline-none"
+          className="electron-no-drag bg-midnight-700 focus:border-midnight-400 h-8 w-80 rounded-lg pl-3 focus:border focus:outline-none"
           type="text"
           placeholder="検索..."
           // value={searchText}

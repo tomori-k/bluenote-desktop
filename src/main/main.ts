@@ -23,6 +23,12 @@ const createWindow = async () => {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#00000000',
+      symbolColor: '#E0E3E1',
+      height: 36,
+    },
   })
 
   // メモ内の URL をクリックしたときにブラウザを外部で開く
