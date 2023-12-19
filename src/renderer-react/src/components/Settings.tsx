@@ -29,6 +29,25 @@ function useBluetoothScanEffect(
   }, [isScanning])
 }
 
+function useInitServerEffect(
+  isRunning: boolean,
+  onInitServerStateChanged: (isRunning: boolean) => void
+) {
+  useEffect(() => {
+    if (!isRunning) {
+      return
+    }
+
+    window.bluetooth.addOnInitServerStateChanged(onInitServerStateChanged)
+    window.bluetooth.startInitServer() // fire and forget
+
+    return () => {
+      window.bluetooth.stopInitServer()
+      window.bluetooth.removeOnInitServerStateChanged(onInitServerStateChanged)
+    }
+  }, [isRunning])
+}
+
 function Button({
   children,
   onClick,
@@ -213,17 +232,31 @@ function DataSync({ onAddSyncDevice }: { onAddSyncDevice: () => void }) {
 }
 
 function AddSyncDevice() {
-  const [isScanning, setIsScanning] = useState(false)
+  const [blState, setBlState] = useState({
+    isScanning: false,
+    isInitServerRunning: false,
+  })
+  const [scannedDevices, setScannedDevices] = useState<
+    {
+      name: string
+      windowsDeviceId: string
+    }[]
+  >([])
 
   function onScanStateChanged(state: boolean) {
-    setIsScanning(state)
+    setBlState({ isScanning: state, isInitServerRunning: false })
   }
 
   function onDeviceFound(device: { name: string; windowsDeviceId: string }) {
-    console.log(`${device.name},${device.windowsDeviceId}`)
+    setScannedDevices([...scannedDevices, device])
   }
 
-  useBluetoothScanEffect(isScanning, onScanStateChanged, onDeviceFound)
+  function onInitServerStateChanged(state: boolean) {
+    setBlState({ isScanning: false, isInitServerRunning: state })
+  }
+
+  useBluetoothScanEffect(blState.isScanning, onScanStateChanged, onDeviceFound)
+  useInitServerEffect(blState.isInitServerRunning, onInitServerStateChanged)
 
   return (
     <SettingsLayout>
@@ -246,17 +279,24 @@ function AddSyncDevice() {
           </>
         }
       >
-        <Button onClick={() => setIsScanning(!isScanning)}>
-          スキャン{isScanning ? '停止' : '開始'}
+        <Button
+          onClick={() =>
+            setBlState({
+              isScanning: !blState.isScanning,
+              isInitServerRunning: false,
+            })
+          }
+        >
+          スキャン{blState.isScanning ? '停止' : '開始'}
         </Button>
       </SettingsItem>
 
       <div>
         <h4 className="mb-2 text-sm">スキャンされたデバイス：</h4>
         <DeviceList>
-          <DeviceListItem>Pixel 6a</DeviceListItem>
-          <DeviceListItem>Pixel 7</DeviceListItem>
-          <DeviceListItem>Pixel 8 Pro</DeviceListItem>
+          {scannedDevices.map((device) => (
+            <DeviceListItem>{device.name}</DeviceListItem>
+          ))}
         </DeviceList>
       </div>
     </SettingsLayout>

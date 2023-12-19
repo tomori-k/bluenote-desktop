@@ -1,12 +1,7 @@
 export enum IpcChannel {
-  BondRequested = 'bond-requested',
   BluetoothDeviceFound = 'bluetooth-device-found',
   StateBluetoothScan = 'state-bluetooth-scan',
-  StateSyncRequestListen = 'state-sync-request-listen',
   // StartBluetoothScan = 'start-bluetooth-scan',
-  RequestSync = 'request-sync',
-  RespondToBondRequest = 'respond-to-bond-request',
-  ListenSyncRequest = 'listen-sync-request',
 
   // DisableSync = 'disable-sync',
   // GetSyncDevices = 'get-sync-devices',
@@ -28,10 +23,22 @@ export enum IpcChannel {
   DeleteNote = 'delete-note',
 }
 
+export enum IpcNotificationChannel {
+  InitServerStateChanged = 'init-server-state-changed',
+  BondRequested = 'bond-requested',
+}
+
 const _NewIpcChannel = {
   // bluetooth
   StartBluetoothScan: 'start-bluetooth-scan',
   StopBluetoothScan: 'stop-bluetooth-scan',
+  RespondToBondRequest: 'respond-to-bond-request',
+
+  // sync init
+  InitSync: 'init-sync',
+  StartInitServer: 'start-init-server',
+  StopInitServer: 'stop-init-server',
+
   // device
   GetSyncEnabledDevices: 'get-sync-enabled-devices',
   DisableSync: 'disable-sync',

@@ -1,5 +1,5 @@
 import { ipcRenderer } from 'electron'
-import { IpcChannel, NewIpcChannel } from './channel'
+import { IpcChannel, IpcNotificationChannel, NewIpcChannel } from './channel'
 
 type BluetoothDevice = {
   name: string
@@ -13,20 +13,23 @@ type RespondToBondRequest = (
 
 type OnBluetoothDeviceFound = (device: BluetoothDevice) => void
 type OnBluetoothScanStateChanged = (isScanning: boolean) => void
-type OnSyncListenStateChanged = (isListening: boolean) => void
+type OnInitServerStateChanged = (isRunning: boolean) => void
 
 let respondToBondRequest: RespondToBondRequest | null = null
 const callbacksBluetoothDeviceFound: OnBluetoothDeviceFound[] = []
 const callbacksBluetoothScanStateChanged: OnBluetoothScanStateChanged[] = []
-const callbacksSyncListenStateChanged: OnSyncListenStateChanged[] = []
+const callbacksInitServerStateChanged: OnInitServerStateChanged[] = []
 
-ipcRenderer.on(IpcChannel.BondRequested, async (_, deviceName, pin) => {
-  const accept =
-    respondToBondRequest != null
-      ? await respondToBondRequest(deviceName, pin)
-      : false
-  ipcRenderer.invoke(IpcChannel.RespondToBondRequest, accept)
-})
+ipcRenderer.on(
+  IpcNotificationChannel.BondRequested,
+  async (_, deviceName, pin) => {
+    const accept =
+      respondToBondRequest != null
+        ? await respondToBondRequest(deviceName, pin)
+        : false
+    ipcRenderer.invoke(NewIpcChannel.RespondToBondRequest, accept)
+  }
+)
 
 ipcRenderer.on(IpcChannel.BluetoothDeviceFound, (_, bluetoohDevice) => {
   for (const callback of callbacksBluetoothDeviceFound) callback(bluetoohDevice)
@@ -37,26 +40,34 @@ ipcRenderer.on(IpcChannel.StateBluetoothScan, (_, isScanning) => {
     callback(isScanning)
 })
 
-ipcRenderer.on(IpcChannel.StateSyncRequestListen, (_, isListening) => {
-  for (const callback of callbacksSyncListenStateChanged) callback(isListening)
-})
+ipcRenderer.on(
+  IpcNotificationChannel.InitServerStateChanged,
+  (_, isListening) => {
+    for (const callback of callbacksInitServerStateChanged)
+      callback(isListening)
+  }
+)
 
 export const bluetooth = {
-  listenSyncRequest() {
-    ipcRenderer.invoke(IpcChannel.ListenSyncRequest)
-  },
   startBluetoothScan() {
     ipcRenderer.invoke(NewIpcChannel.StartBluetoothScan)
   },
   stopBluetoothScan() {
     ipcRenderer.invoke(NewIpcChannel.StopBluetoothScan)
   },
-  requestSync(windowsDeviceId: string) {
-    ipcRenderer.invoke(IpcChannel.RequestSync, windowsDeviceId)
+
+  async initSync(windowsDeviceId: string) {
+    await ipcRenderer.invoke(NewIpcChannel.InitSync, windowsDeviceId)
+  },
+  async startInitServer() {
+    await ipcRenderer.invoke(NewIpcChannel.StartInitServer)
+  },
+  stopInitServer() {
+    ipcRenderer.invoke(NewIpcChannel.StopInitServer)
   },
 
-  addOnSyncListenStateChanged(callback: OnSyncListenStateChanged) {
-    callbacksSyncListenStateChanged.push(callback)
+  addOnInitServerStateChanged(callback: OnInitServerStateChanged) {
+    callbacksInitServerStateChanged.push(callback)
   },
   addOnBluetoothScanStateChanged(callback: OnBluetoothScanStateChanged) {
     callbacksBluetoothScanStateChanged.push(callback)
@@ -67,9 +78,9 @@ export const bluetooth = {
   setOnBondRequested(respond: RespondToBondRequest) {
     respondToBondRequest = respond
   },
-  removeOnSyncListenStateChanged(callback: OnSyncListenStateChanged) {
-    const i = callbacksSyncListenStateChanged.indexOf(callback)
-    if (i !== -1) callbacksSyncListenStateChanged.splice(i, 1)
+  removeOnInitServerStateChanged(callback: OnInitServerStateChanged) {
+    const i = callbacksInitServerStateChanged.indexOf(callback)
+    if (i !== -1) callbacksInitServerStateChanged.splice(i, 1)
   },
   removeOnBluetoothScanStateChanged(callback: OnBluetoothScanStateChanged) {
     const i = callbacksBluetoothScanStateChanged.indexOf(callback)

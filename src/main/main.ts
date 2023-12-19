@@ -1,7 +1,11 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import * as bluetooth from 'bluenote-bluetooth'
-import { IpcChannel, NewIpcChannel } from '../preload/channel'
+import {
+  IpcChannel,
+  IpcNotificationChannel,
+  NewIpcChannel,
+} from '../preload/channel'
 import { PrismaClient } from '@prisma/client'
 import { DeviceService } from './services/device_service'
 import { ThreadService } from './services/thread_service'
@@ -50,7 +54,11 @@ const createWindow = async () => {
   })
 
   bluetooth.setOnBondRequested((_, deviceName, pin) => {
-    window.webContents.send(IpcChannel.BondRequested, deviceName, pin)
+    window.webContents.send(
+      IpcNotificationChannel.BondRequested,
+      deviceName,
+      pin
+    )
   })
 
   bluetooth.setOnSyncRequested((_, uuid) => {
@@ -166,12 +174,28 @@ const createWindow = async () => {
   //   await deviceService.disableSyncWith(deviceUuid)
   // })
 
+  // ipcMain.handle(NewIpcChannel.StartInitServer, async () => {
+  //   bluetooth.startInitServer(await deviceService.getMyUuid())
+  // })
+
+  // ipcMain.handle(IpcChannel.RequestSync, async (_, windowsDeviceId) => {
+  //   console.log('request: ' + windowsDeviceId)
+  //   const myUuid = await deviceService.getMyUuid()
+  //   const uuid = await bluetooth.initClient(windowsDeviceId, myUuid)
+  //   console.log(`Exchanged UUID: ${uuid}`)
+
+  //   await deviceService.enableSyncWith(uuid, 'TODO: READABLE NAME')
+  // })
+
+  // ipcMain.handle(IpcChannel.RespondToBondRequest, (_, accept) => {
+  //   console.log('accept: ' + accept)
+  //   // TODO: UI からの入力を受け取る
+  //   bluetooth.respondToBondRequest(accept)
+  // })
+
   // これ完璧では？？
   // 登録忘れがあると登録部分で型エラー
-  const IpcHandlers: Record<
-    string,
-    (event: Electron.IpcMainInvokeEvent, ...args: any[]) => any
-  > = {
+  const IpcHandlers = {
     [NewIpcChannel.StartBluetoothScan]: () => {
       bluetooth.startBluetoothScan()
     },
@@ -181,8 +205,36 @@ const createWindow = async () => {
     [NewIpcChannel.GetSyncEnabledDevices]: async () => {
       return await deviceService.getAllSyncEnabledDevices()
     },
-    [NewIpcChannel.DisableSync]: async (_, deviceUuid) => {
+    [NewIpcChannel.DisableSync]: async (
+      _: Electron.IpcMainInvokeEvent,
+      deviceUuid: string
+    ) => {
       await deviceService.disableSyncWith(deviceUuid)
+    },
+    [NewIpcChannel.InitSync]: async (
+      _: Electron.IpcMainInvokeEvent,
+      windowsDeviceId: string
+    ) => {
+      console.log('request: ' + windowsDeviceId)
+      const myUuid = await deviceService.getMyUuid()
+      const uuid = await bluetooth.initClient(windowsDeviceId, myUuid)
+      console.log(`Exchanged UUID: ${uuid}`)
+
+      await deviceService.enableSyncWith(uuid, 'TODO: READABLE NAME')
+    },
+    [NewIpcChannel.StartInitServer]: async () => {
+      bluetooth.startInitServer(await deviceService.getMyUuid())
+    },
+    [NewIpcChannel.StopInitServer]: () => {
+      bluetooth.stopInitServer()
+    },
+    [NewIpcChannel.RespondToBondRequest]: (
+      _: Electron.IpcMainInvokeEvent,
+      accept: boolean
+    ) => {
+      console.log('accept: ' + accept)
+      // TODO: UI からの入力を受け取る
+      bluetooth.respondToBondRequest(accept)
     },
   }
 
@@ -283,31 +335,15 @@ const createWindow = async () => {
   })
 
   bluetooth.setOnInitServerStateChanged((_, isRunning) => {
-    window.webContents.send(IpcChannel.StateSyncRequestListen, isRunning)
-  })
-
-  ipcMain.handle(IpcChannel.ListenSyncRequest, async () => {
-    bluetooth.startInitServer(await deviceService.getMyUuid())
+    window.webContents.send(
+      IpcNotificationChannel.InitServerStateChanged,
+      isRunning
+    )
   })
 
   // ipcMain.handle(IpcChannel.StartBluetoothScan, async () => {
   //   bluetooth.startBluetoothScan()
   // })
-
-  ipcMain.handle(IpcChannel.RequestSync, async (_, windowsDeviceId) => {
-    console.log('request: ' + windowsDeviceId)
-    const myUuid = await deviceService.getMyUuid()
-    const uuid = await bluetooth.initClient(windowsDeviceId, myUuid)
-    console.log(`Exchanged UUID: ${uuid}`)
-
-    await deviceService.enableSyncWith(uuid, 'TODO: READABLE NAME')
-  })
-
-  ipcMain.handle(IpcChannel.RespondToBondRequest, (_, accept) => {
-    console.log('accept: ' + accept)
-    // TODO: UI からの入力を受け取る
-    bluetooth.respondToBondRequest(accept)
-  })
 
   // DBアクセス
 
