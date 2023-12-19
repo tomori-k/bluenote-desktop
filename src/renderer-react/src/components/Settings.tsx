@@ -107,56 +107,83 @@ function DeviceListItemWithDelete({
   )
 }
 
-function SettingsSwitchItem({
-  id,
+function SettingsLayout({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-col gap-3 px-4">{children}</div>
+}
+
+function SettingsItem({
+  title,
   description,
+  children,
 }: {
-  id: string
-  description: string
+  title: React.ReactNode
+  description?: React.ReactNode
+  children: React.ReactNode
 }) {
   return (
-    <div className="grid grid-cols-[1fr_auto] items-center gap-x-16">
-      <label htmlFor={id} className="text-xs">
-        {description}
-      </label>
-      <Switch id={id} />
+    <div className="grid grid-cols-[1fr_auto] items-center gap-x-14">
+      <div>
+        <h4 className="text-sm">{title}</h4>
+        <p className="text-xs">{description}</p>
+      </div>
+      {children}
     </div>
   )
 }
 
 function Appearance() {
-  return <div className="px-4">テーマ設定</div>
+  return (
+    <SettingsLayout>
+      <h3>外観設定</h3>
+
+      <SettingsItem title="テーマ">
+        <select>
+          <option>ライト</option>
+          <option>ダーク</option>
+        </select>
+      </SettingsItem>
+    </SettingsLayout>
+  )
 }
 
 function DataSync({ onAddSyncDevice }: { onAddSyncDevice: () => void }) {
   return (
-    <div className="flex flex-col gap-3 px-4">
-      <div>
-        <h3>データ同期</h3>
-        <SettingsSwitchItem
-          id="data-sync-enabled"
-          description="Bluetoothを使用して、他の端末とデータを同期します"
-        />
-      </div>
+    <SettingsLayout>
+      <h3>データ同期</h3>
 
-      <div>
-        <h3>アプリが起動中はPCをスリープしない</h3>
-        <SettingsSwitchItem
-          id="prevent-from-sleep"
-          description="PCがスリープしている間は、データの共有が停止するため、PCが勝手にスリープに移行しないようにします。"
-        />
-      </div>
+      <SettingsItem
+        title="データ同期の有効化"
+        description={
+          <label htmlFor="data-sync-enabled">
+            Bluetoothを使用して、他の端末とデータを同期します
+          </label>
+        }
+      >
+        <Switch id="data-sync-enabled" />
+      </SettingsItem>
+
+      <SettingsItem
+        title="アプリが起動中はPCをスリープしない"
+        description={
+          <label htmlFor="prevent-from-sleep">
+            PCがスリープしている間は、データの共有が停止するため、PCが勝手にスリープに移行しないようにします。
+          </label>
+        }
+      >
+        <Switch id="prevent-from-sleep" />
+      </SettingsItem>
 
       <div className="flex items-center justify-between">
         <h3 className="text-sm">同期する端末</h3>
         <Button onClick={onAddSyncDevice}>追加</Button>
       </div>
+
       <DeviceList>
         <DeviceListItemWithDelete>Pixel 6a</DeviceListItemWithDelete>
         <DeviceListItemWithDelete>Pixel 7</DeviceListItemWithDelete>
         <DeviceListItemWithDelete>Pixel 8 Pro</DeviceListItemWithDelete>
       </DeviceList>
-    </div>
+    </SettingsLayout>
   )
 }
 
@@ -174,30 +201,40 @@ function AddSyncDevice() {
   useBluetoothScanEffect(isScanning, onScanStateChanged, onDeviceFound)
 
   return (
-    <div className="px-4">
+    <SettingsLayout>
       <h3>同期するデバイスの追加</h3>
-      <h4>追加リクエストの受付</h4>
-      <p>
-        しばらくの間、近くのデバイスから同期設定のリクエストを受け付けます。
-      </p>
-      <Button>接続受付</Button>
 
-      <h4>デバイスのスキャン</h4>
-      <p>
-        同期設定待ちのデバイスをスキャンします。
-        <br />
-        同期相手として設定したいデバイスをクリックしてください。
-      </p>
-      <Button onClick={() => setIsScanning(!isScanning)}>
-        スキャン{isScanning ? '停止' : '開始'}
-      </Button>
+      <SettingsItem
+        title="追加リクエストの受付"
+        description="しばらくの間、近くのデバイスから同期設定のリクエストを受け付けます。"
+      >
+        <Button>接続受付</Button>
+      </SettingsItem>
 
-      <DeviceList>
-        <DeviceListItem>Pixel 6a</DeviceListItem>
-        <DeviceListItem>Pixel 7</DeviceListItem>
-        <DeviceListItem>Pixel 8 Pro</DeviceListItem>
-      </DeviceList>
-    </div>
+      <SettingsItem
+        title="デバイスのスキャン"
+        description={
+          <>
+            同期設定待ちのデバイスをスキャンします。
+            <br />
+            同期相手として設定したいデバイスをクリックしてください。
+          </>
+        }
+      >
+        <Button onClick={() => setIsScanning(!isScanning)}>
+          スキャン{isScanning ? '停止' : '開始'}
+        </Button>
+      </SettingsItem>
+
+      <div>
+        <h4 className="mb-2 text-sm">スキャンされたデバイス：</h4>
+        <DeviceList>
+          <DeviceListItem>Pixel 6a</DeviceListItem>
+          <DeviceListItem>Pixel 7</DeviceListItem>
+          <DeviceListItem>Pixel 8 Pro</DeviceListItem>
+        </DeviceList>
+      </div>
+    </SettingsLayout>
   )
 }
 
