@@ -19,9 +19,9 @@ export default function Editor({
   onCreateClicked,
 }: EditorProps) {
   return (
-    <div className="relative">
+    <div className="border-t-midnight-100 relative border-t dark:border-t-0">
       <textarea
-        className="bg-midnight-900 h-40 w-full resize-none pl-4 pt-3 font-mono text-sm outline-none"
+        className="bg-midnight-50 dark:bg-midnight-900 h-40 w-full resize-none pl-4 pt-3 font-mono text-sm outline-none"
         itemType="text"
         placeholder="メモを入力"
         value={text}
@@ -33,7 +33,7 @@ export default function Editor({
           type="button"
           onClick={onCreateClicked}
         >
-          <EditIcon />
+          <EditIcon className="fill-midnight-400 dark:fill-midnight-50 w-5 marker:h-5" />
           {editorMode === EditorMode.Create ? '追加' : '編集'}
         </button>
       </div>

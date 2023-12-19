@@ -62,8 +62,8 @@ function App() {
   }
 
   return (
-    <div className="text-midnight-50 grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
-      <div className="bg-midnight-900 electron-drag relative flex h-12 items-center justify-center gap-4">
+    <div className="text-midnight-950 bg-midnight-50 dark:text-midnight-50 grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
+      <div className="bg-midnight-300 dark:bg-midnight-900 electron-drag relative flex h-12 items-center justify-center gap-4">
         <button
           className="electron-no-drag absolute left-0 p-4"
           type="button"
@@ -71,9 +71,9 @@ function App() {
         >
           <HamburgerIcon />
         </button>
-        <SearchIcon />
+        <SearchIcon className="fill-midnight-50" />
         <input
-          className="electron-no-drag bg-midnight-700 focus:border-midnight-400 h-8 w-80 rounded-lg pl-3 focus:border focus:outline-none"
+          className="electron-no-drag bg-midnight-50 dark:bg-midnight-700 focus:dark:border-midnight-400 h-8 w-80 rounded-lg pl-3 focus:border focus:outline-none"
           type="text"
           placeholder="検索..."
           // value={searchText}

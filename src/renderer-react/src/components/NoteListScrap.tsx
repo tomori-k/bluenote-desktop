@@ -47,23 +47,26 @@ export default function NoteListScrap({
 
   return (
     <>
-      <ul className="divide-midnight-600 divide-y overflow-y-auto">
+      <ul className="divide-midnight-100 dark:divide-midnight-600 divide-y overflow-y-auto">
         {notes.map((x) => (
           <li key={x.id} className="first:pt-5">
-            <div className="hover:bg-midnight-700 group relative" key={x.id}>
+            <div
+              className="hover:bg-midnight-100 hover:dark:bg-midnight-700 group relative"
+              key={x.id}
+            >
               <p className="p-2 text-right text-xs">
                 {x.createdAt.toUTCString()}
               </p>
               <p className="pb-4 pl-4 text-sm">{x.content}</p>
               <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
                 <HoverMenuItem onClick={() => onNoteClicked(x)}>
-                  <TextBulletListTreeIcon />
+                  <TextBulletListTreeIcon className="fill-midnight-50" />
                 </HoverMenuItem>
                 <HoverMenuItem onClick={() => onNoteEditClicked(x)}>
-                  <EditIcon className="h-4 w-4" />
+                  <EditIcon className="fill-midnight-50 h-4 w-4" />
                 </HoverMenuItem>
                 <HoverMenuItem onClick={() => onNoteRemoveClicked(x)}>
-                  <DeleteIcon />
+                  <DeleteIcon className="fill-midnight-50" />
                 </HoverMenuItem>
               </HoverMenu>
             </div>

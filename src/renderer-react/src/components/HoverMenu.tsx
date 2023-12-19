@@ -9,7 +9,7 @@ export function HoverMenu({
     <ul
       className={
         className +
-        ' bg-midnight-800 border-midnight-600 z-10 flex h-9 items-center rounded-md border'
+        ' bg-midnight-400 dark:bg-midnight-800 dark:border-midnight-600 z-10 flex h-9 items-center rounded-md dark:border'
       }
     >
       {children}
@@ -26,7 +26,7 @@ export function HoverMenuItem({
 }) {
   return (
     <li
-      className="hover:bg-midnight-600 flex h-full items-center px-3"
+      className="hover:bg-midnight-300 hover:dark:bg-midnight-600 flex h-full items-center rounded-md px-3"
       onClick={onClick}
     >
       {children}

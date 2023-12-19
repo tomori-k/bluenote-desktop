@@ -57,7 +57,7 @@ function Button({
 }) {
   return (
     <button
-      className="bg-midnight-800 hover:bg-midnight-600 border-midnight-600 rounded-md border px-4 py-2 text-xs"
+      className="dark:bg-midnight-800 hover:dark:bg-midnight-600 dark:border-midnight-600 rounded-md border px-4 py-2 text-xs"
       type="button"
       onClick={onClick}
     >
@@ -83,7 +83,7 @@ function SettingsSideMenuItem({
     <li
       className={
         'flex h-7 items-center rounded pl-4 text-sm' +
-        (selected ? ' bg-midnight-600' : '')
+        (selected ? ' dark:bg-midnight-600' : '')
       }
       onClick={onClick}
     >
@@ -94,13 +94,15 @@ function SettingsSideMenuItem({
 
 function DeviceList({ children }: { children: React.ReactNode }) {
   return (
-    <ul className="border-midnight-600 rounded-2xl border p-2">{children}</ul>
+    <ul className="dark:border-midnight-600 rounded-2xl border p-2">
+      {children}
+    </ul>
   )
 }
 
 function DeviceListItem({ children }: { children: React.ReactNode }) {
   return (
-    <li className="hover:bg-midnight-600 group flex h-7 items-center justify-between rounded-md p-2 text-xs">
+    <li className="hover:dark:bg-midnight-600 group flex h-7 items-center justify-between rounded-md p-2 text-xs">
       {children}
     </li>
   )
@@ -314,18 +316,18 @@ export default function Settings({ onClose }: SettingsProps) {
 
   return (
     <div
-      className="bg-midnight-950 absolute left-0 top-0 h-screen w-screen bg-opacity-70"
+      className="dark:bg-midnight-950 absolute left-0 top-0 h-screen w-screen bg-opacity-70"
       onClick={onClose}
     >
       <div
-        className="bg-midnight-800 border-midnight-600 absolute left-[calc(50vw-600px/2)] top-[calc(50vh-500px/2)] z-10 grid h-[500px] w-[600px] grid-rows-[auto_1fr] rounded-3xl border"
+        className="dark:bg-midnight-800 dark:border-midnight-600 absolute left-[calc(50vw-600px/2)] top-[calc(50vh-500px/2)] z-10 grid h-[500px] w-[600px] grid-rows-[auto_1fr] rounded-3xl border"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="flex h-14 items-center gap-4 pl-7 text-xl">
           <SettingsIcon className="h-5 w-5" />
           設定
         </h2>
-        <div className="divide-midnight-600 grid h-full grid-cols-[auto_1fr] divide-x pb-2">
+        <div className="divide-midnight-100 dark:divide-midnight-600 grid h-full grid-cols-[auto_1fr] divide-x pb-2">
           <ul className="w-36 px-2">
             <SettingsSideMenuItem
               selected={tab === SettingsTab.Appearance}

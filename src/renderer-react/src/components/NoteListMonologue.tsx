@@ -53,14 +53,15 @@ export default function NoteListMonologue({
             <ul className="flex flex-col-reverse">
               {noteGroup.map((note, i) => (
                 <li
-                  className="hover:bg-midnight-700 group relative flex flex-row py-1"
+                  className="hover:bg-midnight-100 hover:dark:bg-midnight-700 group relative flex flex-row py-1"
                   key={note.id}
                 >
                   <p
                     className={
                       (i !== noteGroup.length - 1
                         ? 'invisible opacity-50 group-hover:visible'
-                        : '') + ' text-midnight-200 w-14 px-2 pt-[1px] text-xs'
+                        : '') +
+                      ' dark:text-midnight-200 w-14 px-2 pt-[1px] text-xs'
                     }
                   >
                     {note.createdAt.getHours()}:{note.createdAt.getMinutes()}
@@ -68,13 +69,13 @@ export default function NoteListMonologue({
                   <p className="break-all text-sm">{note.content}</p>
                   <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
                     <HoverMenuItem onClick={() => onNoteClicked(note)}>
-                      <TextBulletListTreeIcon />
+                      <TextBulletListTreeIcon className="fill-midnight-50" />
                     </HoverMenuItem>
                     <HoverMenuItem onClick={() => onNoteEditClicked(note)}>
-                      <EditIcon className="h-4 w-4" />
+                      <EditIcon className="fill-midnight-50 h-4 w-4" />
                     </HoverMenuItem>
                     <HoverMenuItem onClick={() => onNoteRemoveClicked(note)}>
-                      <DeleteIcon />
+                      <DeleteIcon className="fill-midnight-50" />
                     </HoverMenuItem>
                   </HoverMenu>
                 </li>

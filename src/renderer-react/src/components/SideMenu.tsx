@@ -21,7 +21,7 @@ export function ContextMenu({ position, children, onClose }: ContextMenuProps) {
   return (
     <div className="absolute left-0 top-0 h-screen w-screen" onClick={onClose}>
       <div
-        className="bg-midnight-800 border-midnight-600 absolute z-10 rounded-md border"
+        className="dark:bg-midnight-800 dark:border-midnight-600 absolute z-10 rounded-md border"
         style={{ left: `${position.left}px`, top: `${position.top}px` }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -39,7 +39,7 @@ type ContextMenuItemProps = {
 export function ContextMenuItem({ children, onClick }: ContextMenuItemProps) {
   return (
     <li
-      className="hover:bg-midnight-500 px-4 py-1 text-sm first:pt-2 last:pb-2"
+      className="hover:dark:bg-midnight-500 px-4 py-1 text-sm first:pt-2 last:pb-2"
       onClick={onClick}
     >
       {children}
@@ -229,7 +229,7 @@ export default function SideMenu({
   }
 
   return (
-    <div className="bg-midnight-950 w-52 px-2">
+    <div className="text-midnight-50 bg-midnight-300 dark:bg-midnight-950 w-52 px-2">
       <div className="flex h-9 items-center justify-between">
         <h2 className="flex items-center gap-3 pl-1 text-base">
           <ThreadIcon />
@@ -248,7 +248,7 @@ export default function SideMenu({
             <li
               className={
                 (thread === selectedThraed
-                  ? 'bg-midnight-500 rounded-md'
+                  ? 'dark:bg-midnight-500 rounded-md'
                   : '') + ' flex h-8 items-center justify-between px-3 text-sm'
               }
               key={thread.id}
@@ -316,11 +316,11 @@ export default function SideMenu({
         )}
       </ul>
 
-      <hr className="bg-midnight-700 my-3 h-px border-0" />
+      <hr className="dark:bg-midnight-700 my-3 h-px border-0" />
 
       <ul>
         <SideMenuLi onClick={onTrashClicked}>
-          <DeleteIcon />
+          <DeleteIcon className="fill-midnight-50" />
           ごみ箱
         </SideMenuLi>
         <SideMenuLi onClick={onSettingsClicked}>
