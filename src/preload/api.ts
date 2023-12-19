@@ -1,7 +1,8 @@
 import { ipcRenderer } from 'electron'
-import { IpcChannel } from './channel'
+import { IpcChannel, NewIpcChannel } from './channel'
 import { Thread } from '../common/thread'
 import { Note } from '../common/note'
+import { Device } from '@prisma/client'
 
 type ThreadCreate = Pick<Thread, 'name'>
 
@@ -110,6 +111,16 @@ export const api = {
 
   async deleteNote(note: Note): Promise<void> {
     return await ipcRenderer.invoke(IpcChannel.DeleteNote, note)
+  },
+
+  // device
+  // TODO: api も細分化する
+  async getSyncEnabledDevices(): Promise<Device[]> {
+    return await ipcRenderer.invoke(NewIpcChannel.GetSyncEnabledDevices)
+  },
+
+  async disableSync(deviceUuid: string) {
+    await ipcRenderer.invoke(NewIpcChannel.DisableSync, deviceUuid)
   },
 }
 

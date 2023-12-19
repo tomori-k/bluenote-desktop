@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import SettingsIcon from './icons/SettingsIcon'
 import CloseIcon from './icons/CloseIcon'
+import { Device } from '@prisma/client'
 
 type SettingsProps = {
   onClose: () => void
@@ -147,6 +148,26 @@ function Appearance() {
 }
 
 function DataSync({ onAddSyncDevice }: { onAddSyncDevice: () => void }) {
+  const [hasErrorOccured, setHasErrorOccured] = useState(false)
+  const [devices, setDevices] = useState<Device[]>([])
+
+  useEffect(() => {
+    async function getSyncDevices() {
+      try {
+        const devices = await window.api.getSyncEnabledDevices()
+        setDevices(devices)
+      } catch (e) {
+        setHasErrorOccured(true)
+      }
+    }
+
+    getSyncDevices()
+
+    return () => {
+      // TODO: abort
+    }
+  }, [])
+
   return (
     <SettingsLayout>
       <h3>データ同期</h3>
@@ -178,10 +199,14 @@ function DataSync({ onAddSyncDevice }: { onAddSyncDevice: () => void }) {
         <Button onClick={onAddSyncDevice}>追加</Button>
       </div>
 
+      {hasErrorOccured && <p className="text-red-600">エラーが発生しました</p>}
+
       <DeviceList>
-        <DeviceListItemWithDelete>Pixel 6a</DeviceListItemWithDelete>
-        <DeviceListItemWithDelete>Pixel 7</DeviceListItemWithDelete>
-        <DeviceListItemWithDelete>Pixel 8 Pro</DeviceListItemWithDelete>
+        {devices.map((device) => (
+          <DeviceListItemWithDelete key={device.id}>
+            {device.name}
+          </DeviceListItemWithDelete>
+        ))}
       </DeviceList>
     </SettingsLayout>
   )

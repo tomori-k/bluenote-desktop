@@ -3,12 +3,13 @@ export enum IpcChannel {
   BluetoothDeviceFound = 'bluetooth-device-found',
   StateBluetoothScan = 'state-bluetooth-scan',
   StateSyncRequestListen = 'state-sync-request-listen',
-  StartBluetoothScan = 'start-bluetooth-scan',
+  // StartBluetoothScan = 'start-bluetooth-scan',
   RequestSync = 'request-sync',
   RespondToBondRequest = 'respond-to-bond-request',
   ListenSyncRequest = 'listen-sync-request',
-  DisableSync = 'disable-sync',
-  GetSyncDevices = 'get-sync-devices',
+
+  // DisableSync = 'disable-sync',
+  // GetSyncDevices = 'get-sync-devices',
 
   GetAllThreads = 'get-all-threads',
   CreateThread = 'create-thread',
@@ -28,8 +29,14 @@ export enum IpcChannel {
 }
 
 const _NewIpcChannel = {
+  // bluetooth
   StartBluetoothScan: 'start-bluetooth-scan',
   StopBluetoothScan: 'stop-bluetooth-scan',
+  // device
+  GetSyncEnabledDevices: 'get-sync-enabled-devices',
+  DisableSync: 'disable-sync',
+  // thread
+  // note
 } as const
 
 export type NewIpcChannel = (typeof _NewIpcChannel)[keyof typeof _NewIpcChannel]

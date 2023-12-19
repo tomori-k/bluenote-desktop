@@ -153,14 +153,36 @@ const createWindow = async () => {
     bluetooth.respondToUpdateSyncedAtRequest()
   })
 
+  // ipcMain.handle(IpcChannel.GetSyncDevices, async () => {
+  //   const devices = await deviceService.getAllSyncEnabledDevices()
+
+  //   return devices.map((x) => ({
+  //     uuid: x.id,
+  //     name: x.name,
+  //   }))
+  // })
+
+  // ipcMain.handle(IpcChannel.DisableSync, async (_, deviceUuid) => {
+  //   await deviceService.disableSyncWith(deviceUuid)
+  // })
+
   // これ完璧では？？
   // 登録忘れがあると登録部分で型エラー
-  const IpcHandlers = {
+  const IpcHandlers: Record<
+    string,
+    (event: Electron.IpcMainInvokeEvent, ...args: any[]) => any
+  > = {
     [NewIpcChannel.StartBluetoothScan]: () => {
       bluetooth.startBluetoothScan()
     },
     [NewIpcChannel.StopBluetoothScan]: () => {
       bluetooth.stopBluetoothScan()
+    },
+    [NewIpcChannel.GetSyncEnabledDevices]: async () => {
+      return await deviceService.getAllSyncEnabledDevices()
+    },
+    [NewIpcChannel.DisableSync]: async (_, deviceUuid) => {
+      await deviceService.disableSyncWith(deviceUuid)
     },
   }
 
@@ -272,15 +294,6 @@ const createWindow = async () => {
   //   bluetooth.startBluetoothScan()
   // })
 
-  ipcMain.handle(IpcChannel.GetSyncDevices, async () => {
-    const devices = await deviceService.getAllSyncEnabledDevices()
-
-    return devices.map((x) => ({
-      uuid: x.id,
-      name: x.name,
-    }))
-  })
-
   ipcMain.handle(IpcChannel.RequestSync, async (_, windowsDeviceId) => {
     console.log('request: ' + windowsDeviceId)
     const myUuid = await deviceService.getMyUuid()
@@ -288,10 +301,6 @@ const createWindow = async () => {
     console.log(`Exchanged UUID: ${uuid}`)
 
     await deviceService.enableSyncWith(uuid, 'TODO: READABLE NAME')
-  })
-
-  ipcMain.handle(IpcChannel.DisableSync, async (_, deviceUuid) => {
-    await deviceService.disableSyncWith(deviceUuid)
   })
 
   ipcMain.handle(IpcChannel.RespondToBondRequest, (_, accept) => {

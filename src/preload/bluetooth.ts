@@ -5,10 +5,7 @@ type BluetoothDevice = {
   name: string
   windowsDeviceId: string
 }
-type SyncDevice = {
-  uuid: string
-  name: string
-}
+
 type RespondToBondRequest = (
   deviceName: string,
   pin: string
@@ -54,15 +51,10 @@ export const bluetooth = {
   stopBluetoothScan() {
     ipcRenderer.invoke(NewIpcChannel.StopBluetoothScan)
   },
-  async getSyncDevices(): Promise<SyncDevice[]> {
-    return await ipcRenderer.invoke(IpcChannel.GetSyncDevices)
-  },
   requestSync(windowsDeviceId: string) {
     ipcRenderer.invoke(IpcChannel.RequestSync, windowsDeviceId)
   },
-  async disableSync(deviceUuid: string) {
-    await ipcRenderer.invoke(IpcChannel.DisableSync, deviceUuid)
-  },
+
   addOnSyncListenStateChanged(callback: OnSyncListenStateChanged) {
     callbacksSyncListenStateChanged.push(callback)
   },
