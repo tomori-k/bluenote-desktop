@@ -1,5 +1,5 @@
 import { ipcRenderer } from 'electron'
-import { IpcChannel, IpcNotificationChannel, NewIpcChannel } from './channel'
+import { IpcNotificationChannel, IpcInvokeChannel } from './channel'
 
 type BluetoothDevice = {
   name: string
@@ -27,15 +27,19 @@ ipcRenderer.on(
       respondToBondRequest != null
         ? await respondToBondRequest(deviceName, pin)
         : false
-    ipcRenderer.invoke(NewIpcChannel.RespondToBondRequest, accept)
+    ipcRenderer.invoke(IpcInvokeChannel.RespondToBondRequest, accept)
   }
 )
 
-ipcRenderer.on(IpcChannel.BluetoothDeviceFound, (_, bluetoohDevice) => {
-  for (const callback of callbacksBluetoothDeviceFound) callback(bluetoohDevice)
-})
+ipcRenderer.on(
+  IpcNotificationChannel.BluetoothDeviceFound,
+  (_, bluetoohDevice) => {
+    for (const callback of callbacksBluetoothDeviceFound)
+      callback(bluetoohDevice)
+  }
+)
 
-ipcRenderer.on(IpcChannel.StateBluetoothScan, (_, isScanning) => {
+ipcRenderer.on(IpcNotificationChannel.StateBluetoothScan, (_, isScanning) => {
   for (const callback of callbacksBluetoothScanStateChanged)
     callback(isScanning)
 })
@@ -50,20 +54,20 @@ ipcRenderer.on(
 
 export const bluetooth = {
   startBluetoothScan() {
-    ipcRenderer.invoke(NewIpcChannel.StartBluetoothScan)
+    ipcRenderer.invoke(IpcInvokeChannel.StartBluetoothScan)
   },
   stopBluetoothScan() {
-    ipcRenderer.invoke(NewIpcChannel.StopBluetoothScan)
+    ipcRenderer.invoke(IpcInvokeChannel.StopBluetoothScan)
   },
 
   async initSync(windowsDeviceId: string) {
-    await ipcRenderer.invoke(NewIpcChannel.InitSync, windowsDeviceId)
+    await ipcRenderer.invoke(IpcInvokeChannel.InitSync, windowsDeviceId)
   },
   async startInitServer() {
-    await ipcRenderer.invoke(NewIpcChannel.StartInitServer)
+    await ipcRenderer.invoke(IpcInvokeChannel.StartInitServer)
   },
   stopInitServer() {
-    ipcRenderer.invoke(NewIpcChannel.StopInitServer)
+    ipcRenderer.invoke(IpcInvokeChannel.StopInitServer)
   },
 
   addOnInitServerStateChanged(callback: OnInitServerStateChanged) {

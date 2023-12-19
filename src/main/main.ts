@@ -1,12 +1,8 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import * as bluetooth from 'bluenote-bluetooth'
-import {
-  IpcChannel,
-  IpcNotificationChannel,
-  NewIpcChannel,
-} from '../preload/channel'
-import { PrismaClient } from '@prisma/client'
+import { IpcNotificationChannel, IpcInvokeChannel } from '../preload/channel'
+import { Note, PrismaClient, Thread } from '@prisma/client'
 import { DeviceService } from './services/device_service'
 import { ThreadService } from './services/thread_service'
 import { NoteService } from './services/note_service'
@@ -47,7 +43,7 @@ const createWindow = async () => {
   })
 
   bluetooth.setOnBluetoothDeviceFound(async (_, deviceName, deviceId) => {
-    window.webContents.send(IpcChannel.BluetoothDeviceFound, {
+    window.webContents.send(IpcNotificationChannel.BluetoothDeviceFound, {
       name: deviceName,
       windowsDeviceId: deviceId,
     })
@@ -161,57 +157,43 @@ const createWindow = async () => {
     bluetooth.respondToUpdateSyncedAtRequest()
   })
 
-  // ipcMain.handle(IpcChannel.GetSyncDevices, async () => {
-  //   const devices = await deviceService.getAllSyncEnabledDevices()
+  bluetooth.setOnUuidExchanged(async (_, name, uuid) => {
+    await deviceService.enableSyncWith(uuid, name)
+  })
 
-  //   return devices.map((x) => ({
-  //     uuid: x.id,
-  //     name: x.name,
-  //   }))
-  // })
+  bluetooth.setOnScanStateChanged((_, isScanning) => {
+    window.webContents.send(
+      IpcNotificationChannel.StateBluetoothScan,
+      isScanning
+    )
+  })
 
-  // ipcMain.handle(IpcChannel.DisableSync, async (_, deviceUuid) => {
-  //   await deviceService.disableSyncWith(deviceUuid)
-  // })
-
-  // ipcMain.handle(NewIpcChannel.StartInitServer, async () => {
-  //   bluetooth.startInitServer(await deviceService.getMyUuid())
-  // })
-
-  // ipcMain.handle(IpcChannel.RequestSync, async (_, windowsDeviceId) => {
-  //   console.log('request: ' + windowsDeviceId)
-  //   const myUuid = await deviceService.getMyUuid()
-  //   const uuid = await bluetooth.initClient(windowsDeviceId, myUuid)
-  //   console.log(`Exchanged UUID: ${uuid}`)
-
-  //   await deviceService.enableSyncWith(uuid, 'TODO: READABLE NAME')
-  // })
-
-  // ipcMain.handle(IpcChannel.RespondToBondRequest, (_, accept) => {
-  //   console.log('accept: ' + accept)
-  //   // TODO: UI からの入力を受け取る
-  //   bluetooth.respondToBondRequest(accept)
-  // })
+  bluetooth.setOnInitServerStateChanged((_, isRunning) => {
+    window.webContents.send(
+      IpcNotificationChannel.InitServerStateChanged,
+      isRunning
+    )
+  })
 
   // これ完璧では？？
   // 登録忘れがあると登録部分で型エラー
   const IpcHandlers = {
-    [NewIpcChannel.StartBluetoothScan]: () => {
+    [IpcInvokeChannel.StartBluetoothScan]: () => {
       bluetooth.startBluetoothScan()
     },
-    [NewIpcChannel.StopBluetoothScan]: () => {
+    [IpcInvokeChannel.StopBluetoothScan]: () => {
       bluetooth.stopBluetoothScan()
     },
-    [NewIpcChannel.GetSyncEnabledDevices]: async () => {
+    [IpcInvokeChannel.GetSyncEnabledDevices]: async () => {
       return await deviceService.getAllSyncEnabledDevices()
     },
-    [NewIpcChannel.DisableSync]: async (
+    [IpcInvokeChannel.DisableSync]: async (
       _: Electron.IpcMainInvokeEvent,
       deviceUuid: string
     ) => {
       await deviceService.disableSyncWith(deviceUuid)
     },
-    [NewIpcChannel.InitSync]: async (
+    [IpcInvokeChannel.InitSync]: async (
       _: Electron.IpcMainInvokeEvent,
       windowsDeviceId: string
     ) => {
@@ -222,13 +204,13 @@ const createWindow = async () => {
 
       await deviceService.enableSyncWith(uuid, 'TODO: READABLE NAME')
     },
-    [NewIpcChannel.StartInitServer]: async () => {
+    [IpcInvokeChannel.StartInitServer]: async () => {
       bluetooth.startInitServer(await deviceService.getMyUuid())
     },
-    [NewIpcChannel.StopInitServer]: () => {
+    [IpcInvokeChannel.StopInitServer]: () => {
       bluetooth.stopInitServer()
     },
-    [NewIpcChannel.RespondToBondRequest]: (
+    [IpcInvokeChannel.RespondToBondRequest]: (
       _: Electron.IpcMainInvokeEvent,
       accept: boolean
     ) => {
@@ -236,147 +218,49 @@ const createWindow = async () => {
       // TODO: UI からの入力を受け取る
       bluetooth.respondToBondRequest(accept)
     },
-  }
-
-  // ハンドラの登録
-  for (const channel of NewIpcChannel.all) {
-    ipcMain.handle(channel, IpcHandlers[channel])
-  }
-
-  // setOnNoteUpdatesRequested(async (_, uuid) => {
-  //   console.log(`Update requested from: ${uuid}`)
-
-  //   // 最終同期時刻、現在時刻を取得
-  //   const device = await prisma.device.findFirst({
-  //     where: {
-  //       id: uuid,
-  //       syncEnabled: true,
-  //     },
-  //   })
-  //   const timestamp = new Date()
-
-  //   // 同期が有効であるデバイスが DB になければ
-  //   // メモの送信を拒否
-  //   if (device == null) {
-  //     respondToNoteUpdatesRequest(null)
-  //     return
-  //   }
-
-  //   // 更新分を取得
-
-  //   const threadUpdated = await prisma.thread.findMany({
-  //     where: {
-  //       updatedById: myDeviceId,
-  //       updatedAt: {
-  //         gte: device.syncedAt,
-  //         lt: timestamp,
-  //       },
-  //     },
-  //   })
-  //   const threadDeleted = await prisma.deletedThread.findMany({
-  //     where: {
-  //       deletedAt: {
-  //         gte: device.syncedAt,
-  //         lt: timestamp,
-  //       },
-  //     },
-  //   })
-  //   const noteUpdated = await prisma.note.findMany({
-  //     where: {
-  //       editorId: myDeviceId,
-  //       updatedAt: {
-  //         gte: device.syncedAt,
-  //         lt: timestamp,
-  //       },
-  //     },
-  //   })
-  //   const noteDeleted = await prisma.deletedNote.findMany({
-  //     where: {
-  //       deletedAt: {
-  //         gte: device.syncedAt,
-  //         lt: timestamp,
-  //       },
-  //     },
-  //   })
-
-  //   // 最終同期時刻を更新
-  //   await prisma.device.update({
-  //     where: {
-  //       id: device.id,
-  //     },
-  //     data: {
-  //       syncedAt: timestamp,
-  //     },
-  //   })
-
-  //   const json = JSON.stringify({
-  //     thread: {
-  //       updated: threadUpdated,
-  //       deleted: threadDeleted,
-  //     },
-  //     note: {
-  //       updated: noteUpdated,
-  //       deleted: noteDeleted,
-  //     },
-  //   })
-
-  //   console.log(json)
-
-  //   // Rust 側に送信
-  //   respondToNoteUpdatesRequest(json)
-  // })
-
-  bluetooth.setOnUuidExchanged(async (_, name, uuid) => {
-    await deviceService.enableSyncWith(uuid, name)
-  })
-
-  bluetooth.setOnScanStateChanged((_, isScanning) => {
-    window.webContents.send(IpcChannel.StateBluetoothScan, isScanning)
-  })
-
-  bluetooth.setOnInitServerStateChanged((_, isRunning) => {
-    window.webContents.send(
-      IpcNotificationChannel.InitServerStateChanged,
-      isRunning
-    )
-  })
-
-  // ipcMain.handle(IpcChannel.StartBluetoothScan, async () => {
-  //   bluetooth.startBluetoothScan()
-  // })
-
-  // DBアクセス
-
-  ipcMain.handle(IpcChannel.GetAllThreads, async (_) => {
-    return await threadService.getAllThreads()
-  })
-
-  ipcMain.handle(IpcChannel.CreateThread, async (_, thread) => {
-    return await threadService.create(thread.name)
-  })
-
-  ipcMain.handle(IpcChannel.RenameThread, async (_, thread) => {
-    return await threadService.rename(thread, thread.name)
-  })
-
-  ipcMain.handle(
-    IpcChannel.ChangeDisplayMode,
-    async (_, thread, displayMode) => {
+    [IpcInvokeChannel.GetAllThreads]: async (
+      _: Electron.IpcMainInvokeEvent
+    ) => {
+      return await threadService.getAllThreads()
+    },
+    [IpcInvokeChannel.CreateThread]: async (
+      _: Electron.IpcMainInvokeEvent,
+      thread: Thread // TODO: ほんとは unknown にして値の検証をすべき
+    ) => {
+      return await threadService.create(thread.name)
+    },
+    [IpcInvokeChannel.RenameThread]: async (
+      _: Electron.IpcMainInvokeEvent,
+      thread: Thread
+    ) => {
+      return await threadService.rename(thread, thread.name)
+    },
+    [IpcInvokeChannel.ChangeDisplayMode]: async (
+      _: Electron.IpcMainInvokeEvent,
+      thread: Thread,
+      displayMode: string
+    ) => {
       if (displayMode !== 'monologue' && displayMode !== 'scrap') {
         throw new Error('invalid display mode')
       }
       return await threadService.changeDisplayMode(thread, displayMode)
-    }
-  )
+    },
+    [IpcInvokeChannel.RemoveThread]: async (
+      _: Electron.IpcMainInvokeEvent,
+      threadId: string
+    ) => {
+      const thread = await threadService.get(threadId)
+      await threadService.remove(thread)
+    },
 
-  ipcMain.handle(IpcChannel.RemoveThread, async (_, threadId) => {
-    const thread = await threadService.get(threadId)
-    await threadService.remove(thread)
-  })
-
-  ipcMain.handle(
-    IpcChannel.FindNotesInThread,
-    async (_, thread, searchText, lastId, count, desc) => {
+    [IpcInvokeChannel.FindNotesInThread]: async (
+      _: Electron.IpcMainInvokeEvent,
+      thread: Thread,
+      searchText: string,
+      lastId: string | null,
+      count: number,
+      desc: boolean
+    ) => {
       return await noteService.findInThread(
         thread,
         searchText,
@@ -384,12 +268,15 @@ const createWindow = async () => {
         count,
         desc
       )
-    }
-  )
-
-  ipcMain.handle(
-    IpcChannel.FindNotesInTree,
-    async (_, parent, searchText, lastId, count, desc) => {
+    },
+    [IpcInvokeChannel.FindNotesInTree]: async (
+      _: Electron.IpcMainInvokeEvent,
+      parent: Note,
+      searchText: string,
+      lastId: string | null,
+      count: number,
+      desc: boolean
+    ) => {
       return await noteService.findInTree(
         parent,
         searchText,
@@ -397,95 +284,66 @@ const createWindow = async () => {
         count,
         desc
       )
-    }
-  )
-
-  ipcMain.handle(
-    IpcChannel.FindNotesInTrash,
-    async (_, searchText, lastId, count) => {
+    },
+    [IpcInvokeChannel.FindNotesInTrash]: async (
+      _: Electron.IpcMainInvokeEvent,
+      searchText: string,
+      lastId: string | null,
+      count: number
+    ) => {
       return await noteService.findInTrash(searchText, lastId, count)
-    }
-  )
+    },
 
-  ipcMain.handle(IpcChannel.CreateNoteInThread, async (_, content, thread) => {
-    return await noteService.createInThread(content, thread)
-  })
+    [IpcInvokeChannel.CreateNoteInThread]: async (
+      _: Electron.IpcMainInvokeEvent,
+      content: string,
+      thread: Thread
+    ) => {
+      return await noteService.createInThread(content, thread)
+    },
 
-  ipcMain.handle(IpcChannel.CreateNoteInTree, async (_, content, parent) => {
-    return await noteService.createInTree(content, parent)
-  })
+    [IpcInvokeChannel.CreateNoteInTree]: async (
+      _: Electron.IpcMainInvokeEvent,
+      content: string,
+      parent: Note
+    ) => {
+      return await noteService.createInTree(content, parent)
+    },
 
-  ipcMain.handle(IpcChannel.EditNote, async (_, content, note) => {
-    return await noteService.edit(content, note)
-  })
+    [IpcInvokeChannel.EditNote]: async (
+      _: Electron.IpcMainInvokeEvent,
+      content: string,
+      note: Note
+    ) => {
+      return await noteService.edit(content, note)
+    },
 
-  ipcMain.handle(IpcChannel.RemoveNote, async (_, note) => {
-    await noteService.remove(note)
-  })
+    [IpcInvokeChannel.RemoveNote]: async (
+      _: Electron.IpcMainInvokeEvent,
+      note: Note
+    ) => {
+      await noteService.remove(note)
+    },
 
-  ipcMain.handle(IpcChannel.RestoreNote, async (_, note) => {
-    await noteService.restore(note)
-  })
+    [IpcInvokeChannel.RestoreNote]: async (
+      _: Electron.IpcMainInvokeEvent,
+      note: Note
+    ) => {
+      await noteService.restore(note)
+    },
 
-  ipcMain.handle(IpcChannel.DeleteNote, async (_, note) => {
-    await noteService.deleteNote(note)
-  })
+    [IpcInvokeChannel.DeleteNote]: async (
+      _: Electron.IpcMainInvokeEvent,
+      note: Note
+    ) => {
+      await noteService.deleteNote(note)
+    },
+  }
 
-  // type DeletedThread = {
-  //   id: string
-  //   deletedAt: Date
-  // }
-
-  // type DeletedNote = {
-  //   id: string
-  //   deletedAt: Date
-  // }
-
-  // type ThreadParsed = Omit<Thread, 'createdAt' | 'updatedAt'> & {
-  //   createdAt: string
-  //   updatedAt: string
-  // }
-
-  // type DeletedThreadParsed = Omit<DeletedThread, 'deletedAt'> & {
-  //   deletedAt: string
-  // }
-
-  // type NoteParsed = Omit<Note, 'createdAt' | 'updatedAt'> & {
-  //   createdAt: string
-  //   updatedAt: string
-  // }
-
-  // type DeletedNoteParsed = Omit<DeletedNote, 'deletedAt'> & {
-  //   deletedAt: string
-  // }
-
-  // type SyncData = {
-  //   thread: {
-  //     updated: ThreadParsed[]
-  //     deleted: DeletedThreadParsed[]
-  //   }
-  //   note: {
-  //     updated: NoteParsed[]
-  //     deleted: DeletedNoteParsed[]
-  //   }
-  // }
-
-  // interface SyncCompanion {
-  //   // スレッドの更新状況を取得
-  //   getThreadUpdates(): Promise<Thread[]>
-
-  //   // 指定したスレッドのメモをすべて取得(trash = 1 も含む)
-  //   getAllNotesInThread(thread: Thread): Promise<Note[]>
-
-  //   // 指定したスレッドのメモをすべて取得(trash = 1 も含む)
-  //   getAllNotesInNote(note: Note): Promise<Note[]>
-
-  //   // 指定したスレッド直属のメモの更新状況取得
-  //   getNoteUpdatesInThread(thread: Thread): Promise<Note[]>
-
-  //   // 指定したメモのツリーのメモの更新状況を取得
-  //   getNoteUpdatesInTree(note: Note): Promise<Note[]>
-  // }
+  // ハンドラの登録
+  for (const channel of IpcInvokeChannel.all) {
+    ipcMain.handle(channel, IpcHandlers[channel])
+  }
 
   async function sync() {
     // 対象のデバイスに接続し、プロトコルのバージョンや同期の許可のチェックを行う
@@ -509,228 +367,7 @@ const createWindow = async () => {
       } finally {
         await syncClient.endSync(success)
       }
-
-      // await syncClient.beginSync()
-
-      // console.log('Requesting threads update...')
-
-      // const json = await syncClient.requestData(
-      //   1,
-      //   'c3592051-f873-44a7-b204-332b7b11ba96'
-      // )
-      // console.log(json)
-      // await syncClient.endSync(false)
     }
-
-    // const sync = startSync()
-
-    // // 相手とやりとりを行い、更新差分を計算
-    // const companion = new Companion(sync)
-    // const d = diff(companion)
-
-    // // DB を更新し、接続の終了処理を行う
-    // try {
-    //     updateDb()
-    // }
-    // catch(e) {
-    //     sync.finish(false)
-    //     throw e
-    // }
-
-    // sync.finish(true)
-
-    // await fetchNoteUpdatesFromNearbyDevices(myDeviceId)
-
-    // const threadUpdates = new Map<
-    //   string,
-    //   | { updateType: 'update'; value: Thread }
-    //   | { updateType: 'delete'; value: DeletedThread }
-    // >()
-    // const noteUpdates = new Map<
-    //   string,
-    //   | { updateType: 'update'; value: Note }
-    //   | { updateType: 'delete'; value: DeletedNote }
-    // >()
-
-    // // 更新情報を合算
-    // for (const json of jsonList) {
-    //   const syncData = JSON.parse(json) as SyncData
-
-    //   for (const updated of syncData.thread.updated) {
-    //     const latest = threadUpdates.get(updated.id)
-    //     const latestUpdateAt =
-    //       latest?.updateType === 'update'
-    //         ? latest.value.updatedAt
-    //         : latest?.updateType === 'delete'
-    //         ? latest.value.deletedAt
-    //         : new Date(0)
-    //     const updatedAt = new Date(updated.updatedAt)
-
-    //     if (updatedAt > latestUpdateAt) {
-    //       threadUpdates.set(updated.id, {
-    //         updateType: 'update',
-    //         value: {
-    //           ...updated,
-    //           createdAt: new Date(updated.createdAt),
-    //           updatedAt: new Date(updated.updatedAt),
-    //         },
-    //       })
-    //     }
-    //   }
-
-    //   for (const deleted of syncData.thread.deleted) {
-    //     const latest = threadUpdates.get(deleted.id)
-    //     const latestUpdateAt =
-    //       latest?.updateType === 'update'
-    //         ? latest.value.updatedAt
-    //         : latest?.updateType === 'delete'
-    //         ? latest.value.deletedAt
-    //         : new Date(0)
-    //     const deletedAt = new Date(deleted.deletedAt)
-
-    //     if (deletedAt > latestUpdateAt) {
-    //       threadUpdates.set(deleted.id, {
-    //         updateType: 'delete',
-    //         value: {
-    //           ...deleted,
-    //           deletedAt: deletedAt,
-    //         },
-    //       })
-    //     }
-    //   }
-
-    //   for (const updated of syncData.note.updated) {
-    //     const latest = noteUpdates.get(updated.id)
-    //     const latestUpdateAt =
-    //       latest?.updateType === 'update'
-    //         ? latest.value.updatedAt
-    //         : latest?.updateType === 'delete'
-    //         ? latest.value.deletedAt
-    //         : new Date(0)
-    //     const updatedAt = new Date(updated.updatedAt)
-
-    //     if (updatedAt > latestUpdateAt) {
-    //       noteUpdates.set(updated.id, {
-    //         updateType: 'update',
-    //         value: {
-    //           ...updated,
-    //           createdAt: new Date(updated.createdAt),
-    //           updatedAt: new Date(updated.updatedAt),
-    //         },
-    //       })
-    //     }
-    //   }
-
-    //   for (const deleted of syncData.note.deleted) {
-    //     const latest = noteUpdates.get(deleted.id)
-    //     const latestUpdateAt =
-    //       latest?.updateType === 'update'
-    //         ? latest.value.updatedAt
-    //         : latest?.updateType === 'delete'
-    //         ? latest.value.deletedAt
-    //         : new Date(0)
-    //     const deletedAt = new Date(deleted.deletedAt)
-
-    //     if (deletedAt > latestUpdateAt) {
-    //       noteUpdates.set(deleted.id, {
-    //         updateType: 'delete',
-    //         value: { ...deleted, deletedAt: deletedAt },
-    //       })
-    //     }
-    //   }
-    // }
-
-    // // DB に保存
-
-    // const threadUpdated = []
-    // const threadDeletedIds = []
-    // const noteUpdated = []
-    // const noteDeletedIds = []
-
-    // for (const update of threadUpdates.values()) {
-    //   if (update.updateType === 'update') {
-    //     threadUpdated.push(update.value)
-    //   } else {
-    //     threadDeletedIds.push(update.value.id)
-    //   }
-    // }
-
-    // for (const update of noteUpdates.values()) {
-    //   if (update.updateType === 'update') {
-    //     noteUpdated.push(update.value)
-    //   } else {
-    //     noteDeletedIds.push(update.value.id)
-    //   }
-    // }
-
-    // console.log(threadUpdated)
-    // console.log(threadDeletedIds)
-    // console.log(noteUpdated)
-    // console.log(noteDeletedIds)
-
-    // for (const update of threadUpdated) {
-    //   await prisma.thread.upsert({
-    //     where: {
-    //       id: update.id,
-    //     },
-    //     create: {
-    //       id: update.id,
-    //       name: update.name,
-    //       displayMode: update.displayMode,
-    //       createdAt: update.createdAt,
-    //       updatedAt: update.updatedAt,
-    //       removed: update.removed,
-    //       updatedById: update.updatedById,
-    //     },
-    //     update: {
-    //       name: update.name,
-    //       displayMode: update.displayMode,
-    //       updatedAt: update.updatedAt,
-    //       removed: update.removed,
-    //       updatedById: update.updatedById,
-    //     },
-    //   })
-    // }
-
-    // for (const update of noteUpdated) {
-    //   await prisma.note.upsert({
-    //     where: {
-    //       id: update.id,
-    //     },
-    //     create: {
-    //       id: update.id,
-    //       content: update.content,
-    //       editorId: update.editorId,
-    //       createdAt: update.createdAt,
-    //       updatedAt: update.updatedAt,
-    //       threadId: update.threadId,
-    //       parentId: update.parentId,
-    //       removed: update.removed,
-    //     },
-    //     update: {
-    //       content: update.content,
-    //       editorId: update.editorId,
-    //       updatedAt: update.updatedAt,
-    //       removed: update.removed,
-    //     },
-    //   })
-    // }
-
-    // await prisma.thread.deleteMany({
-    //   where: {
-    //     id: {
-    //       in: threadDeletedIds,
-    //     },
-    //   },
-    // })
-
-    // await prisma.note.deleteMany({
-    //   where: {
-    //     id: {
-    //       in: noteDeletedIds,
-    //     },
-    //   },
-    // })
 
     console.log('sync finished.')
   }

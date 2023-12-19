@@ -1,29 +1,9 @@
-export enum IpcChannel {
+/**
+ * メインプロセスからレンダラープロセスへのイベント通知に使われるチャネル
+ * */
+export enum IpcNotificationChannel {
   BluetoothDeviceFound = 'bluetooth-device-found',
   StateBluetoothScan = 'state-bluetooth-scan',
-  // StartBluetoothScan = 'start-bluetooth-scan',
-
-  // DisableSync = 'disable-sync',
-  // GetSyncDevices = 'get-sync-devices',
-
-  GetAllThreads = 'get-all-threads',
-  CreateThread = 'create-thread',
-  RenameThread = 'rename-thread',
-  ChangeDisplayMode = 'change-display-mode',
-  RemoveThread = 'remove-thread',
-
-  FindNotesInThread = 'find-notes-in-thread',
-  FindNotesInTree = 'find-notes-in-tree',
-  FindNotesInTrash = 'find-notes-in-trash',
-  CreateNoteInThread = 'create-note-in-thread',
-  CreateNoteInTree = 'create-note-in-tree',
-  EditNote = 'edit-note',
-  RemoveNote = 'remove-note',
-  RestoreNote = 'restore-note',
-  DeleteNote = 'delete-note',
-}
-
-export enum IpcNotificationChannel {
   InitServerStateChanged = 'init-server-state-changed',
   BondRequested = 'bond-requested',
 }
@@ -42,13 +22,30 @@ const _NewIpcChannel = {
   // device
   GetSyncEnabledDevices: 'get-sync-enabled-devices',
   DisableSync: 'disable-sync',
+
   // thread
+  GetAllThreads: 'get-all-threads',
+  CreateThread: 'create-thread',
+  RenameThread: 'rename-thread',
+  ChangeDisplayMode: 'change-display-mode',
+  RemoveThread: 'remove-thread',
+
   // note
+  FindNotesInThread: 'find-notes-in-thread',
+  FindNotesInTree: 'find-notes-in-tree',
+  FindNotesInTrash: 'find-notes-in-trash',
+  CreateNoteInThread: 'create-note-in-thread',
+  CreateNoteInTree: 'create-note-in-tree',
+  EditNote: 'edit-note',
+  RemoveNote: 'remove-note',
+  RestoreNote: 'restore-note',
+  DeleteNote: 'delete-note',
 } as const
 
-export type NewIpcChannel = (typeof _NewIpcChannel)[keyof typeof _NewIpcChannel]
+export type IpcInvokeChannel =
+  (typeof _NewIpcChannel)[keyof typeof _NewIpcChannel]
 
-export const NewIpcChannel = {
+export const IpcInvokeChannel = {
   ..._NewIpcChannel,
   all: Object.values(_NewIpcChannel),
 }

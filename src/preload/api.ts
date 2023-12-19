@@ -1,5 +1,5 @@
 import { ipcRenderer } from 'electron'
-import { IpcChannel, NewIpcChannel } from './channel'
+import { IpcInvokeChannel } from './channel'
 import { Thread } from '../common/thread'
 import { Note } from '../common/note'
 import { Device } from '@prisma/client'
@@ -8,15 +8,15 @@ type ThreadCreate = Pick<Thread, 'name'>
 
 export const api = {
   async getAllThreads(): Promise<Thread[]> {
-    return await ipcRenderer.invoke(IpcChannel.GetAllThreads)
+    return await ipcRenderer.invoke(IpcInvokeChannel.GetAllThreads)
   },
 
   async createThread(thread: ThreadCreate): Promise<Thread> {
-    return await ipcRenderer.invoke(IpcChannel.CreateThread, thread)
+    return await ipcRenderer.invoke(IpcInvokeChannel.CreateThread, thread)
   },
 
   async renameThread(thread: Thread): Promise<Thread> {
-    return await ipcRenderer.invoke(IpcChannel.RenameThread, thread)
+    return await ipcRenderer.invoke(IpcInvokeChannel.RenameThread, thread)
   },
 
   async changeThreadDisplayMode(
@@ -24,14 +24,14 @@ export const api = {
     displayMode: 'monologue' | 'scrap'
   ): Promise<Thread> {
     return await ipcRenderer.invoke(
-      IpcChannel.ChangeDisplayMode,
+      IpcInvokeChannel.ChangeDisplayMode,
       thread,
       displayMode
     )
   },
 
   async removeThread(threadId: string) {
-    await ipcRenderer.invoke(IpcChannel.RemoveThread, threadId)
+    await ipcRenderer.invoke(IpcInvokeChannel.RemoveThread, threadId)
   },
 
   async findNotesInThread(
@@ -42,7 +42,7 @@ export const api = {
     desc: boolean
   ): Promise<Note[]> {
     return await ipcRenderer.invoke(
-      IpcChannel.FindNotesInThread,
+      IpcInvokeChannel.FindNotesInThread,
       thread,
       searchText,
       lastId,
@@ -59,7 +59,7 @@ export const api = {
     desc: boolean
   ): Promise<Note[]> {
     return await ipcRenderer.invoke(
-      IpcChannel.FindNotesInTree,
+      IpcInvokeChannel.FindNotesInTree,
       parent,
       searchText,
       lastId,
@@ -74,7 +74,7 @@ export const api = {
     count: number
   ): Promise<Note[]> {
     return await ipcRenderer.invoke(
-      IpcChannel.FindNotesInTrash,
+      IpcInvokeChannel.FindNotesInTrash,
       searchText,
       lastId,
       count
@@ -83,7 +83,7 @@ export const api = {
 
   async createNoteInThread(content: string, thread: Thread): Promise<Note> {
     return await ipcRenderer.invoke(
-      IpcChannel.CreateNoteInThread,
+      IpcInvokeChannel.CreateNoteInThread,
       content,
       thread
     )
@@ -91,36 +91,36 @@ export const api = {
 
   async createNoteInTree(content: string, parent: Note): Promise<Note> {
     return await ipcRenderer.invoke(
-      IpcChannel.CreateNoteInTree,
+      IpcInvokeChannel.CreateNoteInTree,
       content,
       parent
     )
   },
 
   async editNote(content: string, note: Note): Promise<Note> {
-    return await ipcRenderer.invoke(IpcChannel.EditNote, content, note)
+    return await ipcRenderer.invoke(IpcInvokeChannel.EditNote, content, note)
   },
 
   async removeNote(note: Note): Promise<void> {
-    await ipcRenderer.invoke(IpcChannel.RemoveNote, note)
+    await ipcRenderer.invoke(IpcInvokeChannel.RemoveNote, note)
   },
 
   async restoreNote(note: Note): Promise<void> {
-    return await ipcRenderer.invoke(IpcChannel.RestoreNote, note)
+    return await ipcRenderer.invoke(IpcInvokeChannel.RestoreNote, note)
   },
 
   async deleteNote(note: Note): Promise<void> {
-    return await ipcRenderer.invoke(IpcChannel.DeleteNote, note)
+    return await ipcRenderer.invoke(IpcInvokeChannel.DeleteNote, note)
   },
 
   // device
   // TODO: api も細分化する
   async getSyncEnabledDevices(): Promise<Device[]> {
-    return await ipcRenderer.invoke(NewIpcChannel.GetSyncEnabledDevices)
+    return await ipcRenderer.invoke(IpcInvokeChannel.GetSyncEnabledDevices)
   },
 
   async disableSync(deviceUuid: string) {
-    await ipcRenderer.invoke(NewIpcChannel.DisableSync, deviceUuid)
+    await ipcRenderer.invoke(IpcInvokeChannel.DisableSync, deviceUuid)
   },
 }
 
