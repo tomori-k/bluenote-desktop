@@ -264,6 +264,7 @@ export default function SideMenu({
               {!thread.isRenaming && thread.name}
               {thread.isRenaming && (
                 <input
+                  className="bg-midnight-300 dark:bg-midnight-950 focus:border-midnight-200 focus:dark:border-midnight-600 rounded-md focus:border focus:outline-none"
                   type="text"
                   placeholder="スレッド名"
                   value={newThreadName}
@@ -275,6 +276,7 @@ export default function SideMenu({
                     }
                   }}
                   onBlur={() => onRenameInputBlur(thread)}
+                  autoFocus
                 />
               )}
               <button
