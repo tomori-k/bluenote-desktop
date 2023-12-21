@@ -85,7 +85,7 @@ function App() {
           <SideMenu
             selectedThraed={selection.thread}
             onThreadSelected={(x) => setSelection({ thread: x, note: null })}
-            onTrashClicked={() => setIsTrashViewOpen(true)}
+            onTrashClicked={() => setIsTrashViewOpen(!isTrashViewOpen)}
             onSettingsClicked={() => setIsSettingsModalOpen(true)}
           />
         ) : (
