@@ -225,6 +225,8 @@ export default function SideMenu({
         })
       )
       setContextMenuState({ ...contextMenuState, thread: updatedWithState })
+      // 現在表示中のスレッドなら、新しくそのスレッドが選択されたことにして再読み込みする
+      onThreadSelected(updatedWithState)
     } catch (e) {
       setHasErrorOccured(true)
     }
