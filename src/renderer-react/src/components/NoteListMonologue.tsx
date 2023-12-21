@@ -6,9 +6,8 @@ import EditIcon from './icons/EditIcon'
 import TextBulletListTreeIcon from './icons/TextBulletListTreeIcon'
 
 function formatTime(date: Date) {
-  const padSpace = (n: number) => (n < 10 ? ` ${n}` : `${n}`)
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
-  const hour = padSpace(date.getHours())
+  const hour = date.getHours()
   const minute = pad(date.getMinutes())
 
   return `${hour}:${minute}`
@@ -62,7 +61,7 @@ export default function NoteListMonologue({
             <ul className="flex flex-col-reverse">
               {noteGroup.map((note, i) => (
                 <li
-                  className="hover:bg-midnight-100 hover:dark:bg-midnight-700 group relative flex flex-row py-1"
+                  className="hover:bg-midnight-100 hover:dark:bg-midnight-700 group relative grid grid-cols-[auto_1fr] py-1"
                   key={note.id}
                 >
                   <p
@@ -70,7 +69,7 @@ export default function NoteListMonologue({
                       (i !== noteGroup.length - 1
                         ? 'invisible opacity-50 group-hover:visible'
                         : '') +
-                      ' dark:text-midnight-200 w-14 px-2 pt-[1px] text-xs'
+                      ' dark:text-midnight-200 w-14 pr-4 pt-[1px] text-right text-xs'
                     }
                   >
                     {formatTime(note.createdAt)}
