@@ -57,7 +57,7 @@ export default function NoteListScrap({
               <p className="p-2 text-right text-xs">
                 {x.createdAt.toUTCString()}
               </p>
-              <p className="pb-4 pl-4 text-sm">{x.content}</p>
+              <p className="break-all pb-4 pl-4 text-sm">{x.content}</p>
               <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
                 <HoverMenuItem onClick={() => onNoteClicked(x)}>
                   <TextBulletListTreeIcon className="fill-midnight-50" />
