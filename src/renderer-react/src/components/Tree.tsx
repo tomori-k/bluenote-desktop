@@ -1,8 +1,7 @@
 import { Note, Thread } from '@prisma/client'
 import Editor from './Editor'
-import { useDisplayMode, useNoteList } from './ThreadView'
-import NoteListMonologue from './NoteListMonologue'
-import NoteListScrap from './NoteListScrap'
+import { useNoteList, NoteList } from './ThreadView'
+import { useRef, useCallback } from 'react'
 
 type TreeViewrProps = {
   thread: Thread
@@ -16,10 +15,10 @@ export default function Tree({ thread, parentNote }: TreeViewrProps) {
     hasErrorOccured,
     noteInput,
     editorMode,
-    onReachedLast,
+    onReachedLast: _onReachedLast,
     onNoteCreateClicked,
-    onNoteEditClicked,
-    onNoteRemoveClicked,
+    onNoteEditClicked: _onNoteEditClicked,
+    onNoteRemoveClicked: _onNoteRemoveClicked,
     setNoteInput,
   } = useNoteList(
     async (lastId, count) => {
@@ -42,32 +41,35 @@ export default function Tree({ thread, parentNote }: TreeViewrProps) {
     }
   )
 
-  const [displayMode, notesTransformed] = useDisplayMode(
-    notes,
-    thread.displayMode
-  )
+  const refOnReachedLast = useRef(async () => {})
+  const refOnNoteEditClicked = useRef(async (_: Note) => {})
+  const refOnNoteRemoveClicked = useRef(async (_: Note) => {})
+
+  const onReachedLast = useCallback(() => {
+    refOnReachedLast.current()
+  }, [])
+  const onNoteEditClicked = useCallback((note: Note) => {
+    refOnNoteEditClicked.current(note)
+  }, [])
+  const onNoteRemoveClicked = useCallback((note: Note) => {
+    refOnNoteRemoveClicked.current(note)
+  }, [])
+
+  refOnReachedLast.current = _onReachedLast
+  refOnNoteEditClicked.current = _onNoteEditClicked
+  refOnNoteRemoveClicked.current = _onNoteRemoveClicked
 
   return (
     <div className="dark:bg-midnight-800 grid grid-rows-[minmax(0,_1fr)_auto]">
-      {displayMode === 'scrap' ? (
-        <NoteListScrap
-          notes={notesTransformed}
-          hasLoadedAll={hasLoadedAll}
-          onReachedLast={onReachedLast}
-          onNoteClicked={() => {}}
-          onNoteEditClicked={onNoteEditClicked}
-          onNoteRemoveClicked={onNoteRemoveClicked}
-        />
-      ) : (
-        <NoteListMonologue
-          noteGroups={notesTransformed}
-          hasLoadedAll={hasLoadedAll}
-          onReachedLast={onReachedLast}
-          onNoteClicked={() => {}}
-          onNoteEditClicked={onNoteEditClicked}
-          onNoteRemoveClicked={onNoteRemoveClicked}
-        />
-      )}
+      <NoteList
+        notes={notes}
+        hasLoadedAll={hasLoadedAll}
+        displayMode={thread.displayMode}
+        onReachedLast={onReachedLast}
+        onNoteClicked={() => {}}
+        onNoteEditClicked={onNoteEditClicked}
+        onNoteRemoveClicked={onNoteRemoveClicked}
+      />
 
       {hasErrorOccured && <p className="text-red-600">問題が発生しました</p>}
 

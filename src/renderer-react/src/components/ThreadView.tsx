@@ -2,40 +2,11 @@ import { Note, Thread } from '@prisma/client'
 import Editor, { EditorMode } from './Editor'
 import NoteListScrap from './NoteListScrap'
 import NoteListMonologue from './NoteListMonologue'
-import { useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 
 type ThreadViewProps = {
   thread: Thread | null
   onNoteClicked: (note: Note) => void
-}
-
-export function useNotePagination(
-  loadNext: (lastId: string | null, count: number) => Promise<Note[]>
-) {
-  const count = 100 // ページ単位
-
-  const [notes, setNotes] = useState<Note[]>([])
-  const [hasErrorOccured, setHasErrorOccured] = useState(false)
-  const [hasLoadedAll, setHasLoadedAll] = useState(false)
-
-  async function loadMore() {
-    try {
-      const lastId = notes.length > 0 ? notes[notes.length - 1].id : null
-      const items = await loadNext(lastId, count)
-
-      setNotes([...notes, ...items])
-      if (items.length < count) setHasLoadedAll(true)
-    } catch (e) {
-      setHasErrorOccured(true)
-    }
-  }
-
-  return {
-    notes,
-    hasLoadedAll,
-    hasErrorOccured,
-    loadMore,
-  }
 }
 
 /**
@@ -58,21 +29,6 @@ export function createNoteGroup(notes: Note[]): Note[][] {
 
     return accumulator
   }, new Array<Note[]>())
-}
-
-export function useDisplayMode(
-  notes: Note[],
-  displayMode: string | undefined
-): ['scrap', Note[]] | ['monologue', Note[][]] {
-  const mode =
-    displayMode === 'monologue' || displayMode === 'scrap'
-      ? displayMode
-      : 'monologue'
-
-  return useMemo(() => {
-    if (mode === 'scrap') return [mode, notes]
-    else return [mode, createNoteGroup(notes)]
-  }, [notes, mode])
 }
 
 export function useNoteList(
@@ -155,6 +111,65 @@ export function useNoteList(
   }
 }
 
+type NoteListProps = {
+  notes: Note[]
+  displayMode: string | undefined
+  hasLoadedAll: boolean
+  onReachedLast: () => void
+  onNoteClicked: (note: Note) => void
+  onNoteEditClicked: (note: Note) => void
+  onNoteRemoveClicked: (note: Note) => void
+}
+
+export const NoteList = memo(
+  ({
+    notes,
+    displayMode,
+    hasLoadedAll,
+    onReachedLast,
+    onNoteClicked,
+    onNoteEditClicked,
+    onNoteRemoveClicked,
+  }: NoteListProps) => {
+    const [notesTransformed, mode] = useMemo(
+      function (): [Note[], 'scrap'] | [Note[][], 'monologue'] {
+        const mode =
+          displayMode === 'monologue' || displayMode === 'scrap'
+            ? displayMode
+            : 'monologue'
+
+        if (mode === 'scrap') return [notes, mode]
+        else return [createNoteGroup(notes), mode]
+      },
+      [notes, displayMode]
+    )
+
+    return (
+      <>
+        {mode === 'scrap' ? (
+          <NoteListScrap
+            notes={notesTransformed}
+            hasLoadedAll={hasLoadedAll}
+            onReachedLast={onReachedLast}
+            onNoteClicked={onNoteClicked}
+            onNoteEditClicked={onNoteEditClicked}
+            onNoteRemoveClicked={onNoteRemoveClicked}
+          />
+        ) : (
+          <NoteListMonologue
+            noteGroups={notesTransformed}
+            hasLoadedAll={hasLoadedAll}
+            onReachedLast={onReachedLast}
+            onNoteClicked={onNoteClicked}
+            onNoteEditClicked={onNoteEditClicked}
+            onNoteRemoveClicked={onNoteRemoveClicked}
+          />
+        )}
+      </>
+    )
+  }
+)
+
 export default function ThreadView({ thread, onNoteClicked }: ThreadViewProps) {
   const {
     notes,
@@ -162,10 +177,10 @@ export default function ThreadView({ thread, onNoteClicked }: ThreadViewProps) {
     hasErrorOccured,
     noteInput,
     editorMode,
-    onReachedLast,
+    onReachedLast: _onReachedLast,
     onNoteCreateClicked,
-    onNoteEditClicked,
-    onNoteRemoveClicked,
+    onNoteEditClicked: _onNoteEditClicked,
+    onNoteRemoveClicked: _onNoteRemoveClicked,
     setNoteInput,
   } = useNoteList(
     async (lastId, count) => {
@@ -184,33 +199,35 @@ export default function ThreadView({ thread, onNoteClicked }: ThreadViewProps) {
       return await window.api.removeNote(note)
     }
   )
+  const refOnReachedLast = useRef(async () => {})
+  const refOnNoteEditClicked = useRef(async (_: Note) => {})
+  const refOnNoteRemoveClicked = useRef(async (_: Note) => {})
 
-  const [displayMode, notesTransformed] = useDisplayMode(
-    notes,
-    thread?.displayMode
-  )
+  const onReachedLast = useCallback(() => {
+    refOnReachedLast.current()
+  }, [])
+  const onNoteEditClicked = useCallback((note: Note) => {
+    refOnNoteEditClicked.current(note)
+  }, [])
+  const onNoteRemoveClicked = useCallback((note: Note) => {
+    refOnNoteRemoveClicked.current(note)
+  }, [])
+
+  refOnReachedLast.current = _onReachedLast
+  refOnNoteEditClicked.current = _onNoteEditClicked
+  refOnNoteRemoveClicked.current = _onNoteRemoveClicked
 
   return (
     <div className="dark:bg-midnight-800 grid grid-rows-[minmax(0,_1fr)_auto]">
-      {displayMode === 'scrap' ? (
-        <NoteListScrap
-          notes={notesTransformed}
-          hasLoadedAll={hasLoadedAll}
-          onReachedLast={onReachedLast}
-          onNoteClicked={onNoteClicked}
-          onNoteEditClicked={onNoteEditClicked}
-          onNoteRemoveClicked={onNoteRemoveClicked}
-        />
-      ) : (
-        <NoteListMonologue
-          noteGroups={notesTransformed}
-          hasLoadedAll={hasLoadedAll}
-          onReachedLast={onReachedLast}
-          onNoteClicked={onNoteClicked}
-          onNoteEditClicked={onNoteEditClicked}
-          onNoteRemoveClicked={onNoteRemoveClicked}
-        />
-      )}
+      <NoteList
+        notes={notes}
+        hasLoadedAll={hasLoadedAll}
+        displayMode={thread?.displayMode}
+        onReachedLast={onReachedLast}
+        onNoteClicked={onNoteClicked}
+        onNoteEditClicked={onNoteEditClicked}
+        onNoteRemoveClicked={onNoteRemoveClicked}
+      />
 
       {hasErrorOccured && <p className="text-red-600">問題が発生しました</p>}
 
