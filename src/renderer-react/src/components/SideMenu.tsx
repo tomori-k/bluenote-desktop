@@ -147,6 +147,8 @@ export default function SideMenu({
     e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
     thread: ThreadWithState
   ) {
+    e.stopPropagation()
+
     const bounds = e.currentTarget.getBoundingClientRect()
 
     setContextMenuState({
