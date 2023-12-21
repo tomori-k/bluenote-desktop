@@ -5,6 +5,15 @@ import DeleteIcon from './icons/DeleteIcon'
 import EditIcon from './icons/EditIcon'
 import TextBulletListTreeIcon from './icons/TextBulletListTreeIcon'
 
+function formatTime(date: Date) {
+  const padSpace = (n: number) => (n < 10 ? ` ${n}` : `${n}`)
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+  const hour = padSpace(date.getHours())
+  const minute = pad(date.getMinutes())
+
+  return `${hour}:${minute}`
+}
+
 type NoteListMonologueProps = {
   noteGroups: Note[][]
   hasLoadedAll: boolean
@@ -64,7 +73,7 @@ export default function NoteListMonologue({
                       ' dark:text-midnight-200 w-14 px-2 pt-[1px] text-xs'
                     }
                   >
-                    {note.createdAt.getHours()}:{note.createdAt.getMinutes()}
+                    {formatTime(note.createdAt)}
                   </p>
                   <p className="break-all text-sm">{note.content}</p>
                   <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">

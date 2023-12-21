@@ -5,6 +5,18 @@ import EditIcon from './icons/EditIcon'
 import DeleteIcon from './icons/DeleteIcon'
 import { HoverMenu, HoverMenuItem } from './HoverMenu'
 
+// LocalTime の YYYY-MM-DD HH:mm の形式にフォーマットする
+function formatDate(date: Date) {
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+  const year = date.getFullYear()
+  const month = pad(date.getMonth() + 1)
+  const day = pad(date.getDate())
+  const hour = pad(date.getHours())
+  const minute = pad(date.getMinutes())
+
+  return `${year}-${month}-${day} ${hour}:${minute}`
+}
+
 type NoteListScrapProps = {
   notes: Note[]
   hasLoadedAll: boolean
@@ -55,7 +67,7 @@ export default function NoteListScrap({
               key={x.id}
             >
               <p className="p-2 text-right text-xs">
-                {x.createdAt.toUTCString()}
+                {formatDate(x.createdAt)}
               </p>
               <p className="break-all pb-4 pl-4 text-sm">{x.content}</p>
               <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
