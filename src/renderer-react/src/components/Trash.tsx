@@ -98,7 +98,7 @@ export default function Trash() {
 
       <ul className="divide-midnight-100 dark:divide-midnight-600 divide-y overflow-y-auto">
         {notes.map((note) => (
-          <li className="first:pt-5">
+          <li key={note.id} className="first:pt-5">
             <div
               className="hover:dark:bg-midnight-700 group relative"
               key={note.id}
