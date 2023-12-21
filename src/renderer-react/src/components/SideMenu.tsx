@@ -19,9 +19,12 @@ type ContextMenuProps = {
 
 export function ContextMenu({ position, children, onClose }: ContextMenuProps) {
   return (
-    <div className="absolute left-0 top-0 h-screen w-screen" onClick={onClose}>
+    <div
+      className="absolute left-0 top-0 z-10 h-screen w-screen"
+      onClick={onClose}
+    >
       <div
-        className="dark:bg-midnight-800 dark:border-midnight-600 absolute z-10 rounded-md border"
+        className="dark:bg-midnight-800 dark:border-midnight-600 absolute rounded-md border"
         style={{ left: `${position.left}px`, top: `${position.top}px` }}
         onClick={(e) => e.stopPropagation()}
       >
