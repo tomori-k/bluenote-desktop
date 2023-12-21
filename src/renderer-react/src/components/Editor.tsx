@@ -27,7 +27,7 @@ export default function Editor({
         value={text}
         onChange={(e) => onTextChange(e.target.value)}
       />
-      <div className="absolute bottom-0 right-0 p-4">
+      <div className="hover:dark:bg-midnight-800 absolute bottom-2 right-2 rounded-md p-3">
         <button
           className="flex items-center gap-3 text-sm"
           type="button"

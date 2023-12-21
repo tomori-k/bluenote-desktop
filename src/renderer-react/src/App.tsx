@@ -65,7 +65,7 @@ function App() {
     <div className="text-midnight-950 bg-midnight-50 dark:text-midnight-50 grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
       <div className="bg-midnight-300 dark:bg-midnight-900 electron-drag relative flex h-12 items-center justify-center gap-4">
         <button
-          className="electron-no-drag absolute left-0 p-4"
+          className="electron-no-drag hover:dark:bg-midnight-800 absolute left-0 m-1 rounded-md p-3"
           type="button"
           onClick={() => setIsSideMenuOpen(!isSideMenuOpen)}
         >

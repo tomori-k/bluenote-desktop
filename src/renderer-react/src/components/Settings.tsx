@@ -316,7 +316,7 @@ export default function Settings({ onClose }: SettingsProps) {
 
   return (
     <div
-      className="dark:bg-midnight-950 absolute left-0 top-0 h-screen w-screen bg-opacity-70"
+      className=" dark:bg-midnight-950 absolute left-0 top-0 h-screen w-screen dark:bg-opacity-70"
       onClick={onClose}
     >
       <div

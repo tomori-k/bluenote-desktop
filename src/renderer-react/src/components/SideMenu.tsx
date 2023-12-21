@@ -91,7 +91,10 @@ type SideMenuLiProps = {
  */
 function SideMenuLi({ children, onClick }: SideMenuLiProps) {
   return (
-    <li className="flex h-7 items-center gap-4 px-1 text-sm" onClick={onClick}>
+    <li
+      className="hover:dark:bg-midnight-800 flex h-8 items-center gap-4 rounded-md px-3 text-sm"
+      onClick={onClick}
+    >
       {children}
     </li>
   )
@@ -237,12 +240,16 @@ export default function SideMenu({
 
   return (
     <div className="text-midnight-50 bg-midnight-300 dark:bg-midnight-950 w-52 px-2">
-      <div className="flex h-9 items-center justify-between">
-        <h2 className="flex items-center gap-3 pl-1 text-base">
+      <div className="flex h-11 items-center justify-between">
+        <h2 className="flex items-center gap-3 pl-2 text-base">
           <ThreadIcon />
           スレッド
         </h2>
-        <button className="pr-2" type="button" onClick={onNewThreadClicked}>
+        <button
+          className="hover:dark:bg-midnight-800 rounded-md p-2"
+          type="button"
+          onClick={onNewThreadClicked}
+        >
           <AddIcon />
         </button>
       </div>
@@ -254,9 +261,10 @@ export default function SideMenu({
           return (
             <li
               className={
+                'flex h-8 items-center justify-between rounded-md px-3 text-sm' +
                 (thread === selectedThraed
-                  ? 'dark:bg-midnight-500 rounded-md'
-                  : '') + ' flex h-8 items-center justify-between px-3 text-sm'
+                  ? ' dark:bg-midnight-500'
+                  : ' hover:dark:bg-midnight-800')
               }
               key={thread.id}
               onClick={() => onThreadSelected(thread)}
