@@ -82,8 +82,8 @@ function SettingsSideMenuItem({
   return (
     <li
       className={
-        'flex h-7 items-center rounded pl-4 text-sm' +
-        (selected ? ' dark:bg-midnight-600' : '')
+        (selected ? 'dark:bg-midnight-500 ' : 'hover:dark:bg-midnight-700 ') +
+        'flex h-7 items-center rounded pl-4 text-sm'
       }
       onClick={onClick}
     >
@@ -100,9 +100,18 @@ function DeviceList({ children }: { children: React.ReactNode }) {
   )
 }
 
-function DeviceListItem({ children }: { children: React.ReactNode }) {
+function DeviceListItem({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+}) {
   return (
-    <li className="hover:dark:bg-midnight-600 group flex h-7 items-center justify-between rounded-md p-2 text-xs">
+    <li
+      className="hover:dark:bg-midnight-600 group flex h-7 items-center justify-between rounded-md p-2 text-xs"
+      onClick={onClick}
+    >
       {children}
     </li>
   )
@@ -189,6 +198,15 @@ function DataSync({ onAddSyncDevice }: { onAddSyncDevice: () => void }) {
     }
   }, [])
 
+  async function onDeviceDeleteClicked(device: Device) {
+    try {
+      await window.api.disableSync(device.id)
+      setDevices(devices.filter((d) => d.id !== device.id))
+    } catch (e) {
+      setHasErrorOccured(true)
+    }
+  }
+
   return (
     <SettingsLayout>
       <h3>データ同期</h3>
@@ -224,7 +242,10 @@ function DataSync({ onAddSyncDevice }: { onAddSyncDevice: () => void }) {
 
       <DeviceList>
         {devices.map((device) => (
-          <DeviceListItemWithDelete key={device.id}>
+          <DeviceListItemWithDelete
+            key={device.id}
+            onDeleteClick={() => onDeviceDeleteClicked(device)}
+          >
             {device.name}
           </DeviceListItemWithDelete>
         ))}
@@ -244,6 +265,13 @@ function AddSyncDevice() {
       windowsDeviceId: string
     }[]
   >([])
+  const [hasErrorOccured, setHasErrorOccured] = useState(false)
+  const [bondState, setBondState] = useState<{
+    resolve: (accept: boolean) => void
+    reject: () => void
+    deviceName: string
+    pin: string
+  } | null>(null)
 
   function onScanStateChanged(state: boolean) {
     setBlState({ isScanning: state, isInitServerRunning: false })
@@ -257,8 +285,45 @@ function AddSyncDevice() {
     setBlState({ isScanning: false, isInitServerRunning: state })
   }
 
+  async function onDeviceClicked(device: {
+    name: string
+    windowsDeviceId: string
+  }) {
+    try {
+      await window.bluetooth.initSync(device.windowsDeviceId)
+    } catch (e) {
+      setHasErrorOccured(true)
+    }
+  }
+
+  function onBondRequested(deviceName: string, pin: string): Promise<boolean> {
+    // 前回のリクエストが残っている場合は reject
+    if (bondState != null) {
+      bondState.reject()
+    }
+
+    return new Promise((resolve, reject) => {
+      setBondState({ resolve, reject, deviceName, pin })
+    })
+  }
+
+  function respondToBondRequest(accept: boolean) {
+    if (bondState == null) {
+      return
+    }
+
+    bondState.resolve(accept)
+    setBondState(null)
+  }
+
   useBluetoothScanEffect(blState.isScanning, onScanStateChanged, onDeviceFound)
   useInitServerEffect(blState.isInitServerRunning, onInitServerStateChanged)
+  useEffect(() => {
+    window.bluetooth.setOnBondRequested(onBondRequested)
+    return () => {
+      window.bluetooth.removeOnBondRequested(onBondRequested)
+    }
+  }, [])
 
   return (
     <SettingsLayout>
@@ -268,7 +333,16 @@ function AddSyncDevice() {
         title="追加リクエストの受付"
         description="しばらくの間、近くのデバイスから同期設定のリクエストを受け付けます。"
       >
-        <Button>接続受付</Button>
+        <Button
+          onClick={() => {
+            setBlState({
+              isScanning: false,
+              isInitServerRunning: !blState.isInitServerRunning,
+            })
+          }}
+        >
+          接続{blState.isInitServerRunning ? '停止' : '受付'}
+        </Button>
       </SettingsItem>
 
       <SettingsItem
@@ -293,11 +367,40 @@ function AddSyncDevice() {
         </Button>
       </SettingsItem>
 
-      <div>
-        <h4 className="mb-2 text-sm">スキャンされたデバイス：</h4>
+      <div className="flex flex-col gap-2">
+        <h4 className="text-sm">スキャンされたデバイス：</h4>
+        {hasErrorOccured && (
+          <p className="text-sm text-red-600">問題が発生しました</p>
+        )}
+
+        {bondState != null && (
+          <div className="dark:border-midnight-600 rounded-2xl border p-4">
+            <p className="text-sm">
+              以下のデバイスとの Bluetooth ペアリングを許可しますか？
+            </p>
+            <p className="text-xs">
+              同期を有効にするには、ペアリングを許可する必要があります。
+            </p>
+            <div className="grid grid-cols-[1fr_auto] items-center pt-4">
+              <p className="pl-4 text-sm">
+                {bondState.deviceName}
+                <br />
+                PIN: {bondState.pin}
+              </p>
+              <div className="flex gap-2">
+                <Button onClick={() => respondToBondRequest(true)}>許可</Button>
+                <Button onClick={() => respondToBondRequest(false)}>
+                  拒否
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         <DeviceList>
           {scannedDevices.map((device) => (
-            <DeviceListItem>{device.name}</DeviceListItem>
+            <DeviceListItem onClick={() => onDeviceClicked(device)}>
+              {device.name}
+            </DeviceListItem>
           ))}
         </DeviceList>
       </div>
