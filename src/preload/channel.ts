@@ -19,6 +19,9 @@ const _NewIpcChannel = {
   StartInitServer: 'start-init-server',
   StopInitServer: 'stop-init-server',
 
+  // sync
+  Sync: 'sync',
+
   // device
   GetSyncEnabledDevices: 'get-sync-enabled-devices',
   DisableSync: 'disable-sync',

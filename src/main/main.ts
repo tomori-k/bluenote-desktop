@@ -38,9 +38,10 @@ const createWindow = async () => {
   })
 
   // ウィンドウがアクティブになった時
-  window.webContents.on('focus', async () => {
-    await sync()
-  })
+  // todo: 一旦レンダラにアクティブになったことを通知して、同期するかどうかレンダラで判断するみたいなのがよさそう？
+  // window.webContents.on('focus', async () => {
+  //   await sync()
+  // })
 
   bluetooth.setOnBluetoothDeviceFound(async (_, deviceName, deviceId) => {
     window.webContents.send(IpcNotificationChannel.BluetoothDeviceFound, {
@@ -337,6 +338,10 @@ const createWindow = async () => {
       note: Note
     ) => {
       await noteService.deleteNote(note)
+    },
+
+    [IpcInvokeChannel.Sync]: async () => {
+      await sync()
     },
   }
 

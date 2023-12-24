@@ -122,6 +122,13 @@ export const api = {
   async disableSync(deviceUuid: string) {
     await ipcRenderer.invoke(IpcInvokeChannel.DisableSync, deviceUuid)
   },
+
+  /**
+   * 同期を開始する
+   */
+  async sync() {
+    await ipcRenderer.invoke(IpcInvokeChannel.Sync)
+  },
 }
 
 export type Api = typeof api

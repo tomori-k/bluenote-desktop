@@ -11,6 +11,7 @@ import { Note, Thread } from '@prisma/client'
 import DeleteIcon from './components/icons/DeleteIcon'
 import SearchIcon from './components/icons/SearchIcon'
 import Settings from './components/Settings'
+import SyncIcon from './components/icons/SyncIcon'
 
 function useDebounce<T>(value: T) {
   const [debouncedValue, setDebouncedValue] = useState(value)
@@ -42,12 +43,14 @@ function App() {
   const [isSearchViewOpen, setIsSearchViewOpen] = useState(false)
   const [isTrashViewOpen, setIsTrashViewOpen] = useState(false)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [selection, setSelection] = useState<{
     thread: Thread | null
     note: Note | null
   }>({ thread: null, note: null })
   const [searchText, setSearchText] = useState('')
   const searchTextDebounced = useDebounce(searchText)
+  const [hasErrorOccured, setHasErrorOccured] = useState(false) // todo: これをどこかで表示する
 
   function onNoteInThreadClicked(note: Note) {
     setSelection({ ...selection, note })
@@ -58,6 +61,19 @@ function App() {
 
     if (!isSearchViewOpen && e.target.value.length > 0) {
       setIsSearchViewOpen(true)
+    }
+  }
+
+  async function onSyncClicked() {
+    if (isSyncing) return
+
+    try {
+      setIsSyncing(true)
+      await window.api.sync()
+    } catch (e) {
+      setHasErrorOccured(true)
+    } finally {
+      setIsSyncing(false)
     }
   }
 
@@ -79,6 +95,14 @@ function App() {
           // value={searchText}
           onChange={onSearchTextChanged}
         />
+
+        <button
+          className="electron-no-drag [&:not([disabled])]:hover:dark:bg-midnight-800 rounded-md p-2"
+          onClick={onSyncClicked}
+          disabled={isSyncing}
+        >
+          <SyncIcon isRotating={isSyncing} />
+        </button>
       </div>
       <div className="grid grid-cols-[auto_1fr_auto_auto_auto] grid-rows-[minmax(0,_1fr)]">
         {isSideMenuOpen ? (
