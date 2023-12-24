@@ -159,7 +159,49 @@ export class SyncService {
     })
   }
 
+  /**
+   * データベースを更新する
+   * メモの更新差分 (diff.noteCreate) について、配列内で親のメモがその子のメモよりも
+   * 後ろにあると外部キー制約違反の例外が発生するので注意
+   * @param diff 更新差分
+   */
   public async updateByDiff(diff: Diff): Promise<void> {
-    throw new Error('Method not implemented.')
+    await this.prisma.$transaction(async (prisma) => {
+      for (const threadCreate of diff.threadCreate) {
+        await prisma.thread.create({ data: threadCreate })
+      }
+      for (const threadUpdate of diff.threadUpdate) {
+        await prisma.thread.update({
+          data: threadUpdate,
+          where: { id: threadUpdate.id },
+        })
+      }
+      await prisma.thread.deleteMany({
+        where: { id: { in: diff.threadDelete.map((x) => x.id) } },
+      })
+
+      for (const noteCreate of diff.noteCreate) {
+        await prisma.note.create({ data: noteCreate })
+      }
+      for (const noteUpdate of diff.noteUpdate) {
+        await prisma.note.update({
+          data: noteUpdate,
+          where: { id: noteUpdate.id },
+        })
+      }
+      await prisma.note.deleteMany({
+        where: {
+          OR: [
+            { id: { in: diff.noteDelete.map((x) => x.id) } },
+            {
+              threadId: { in: diff.noteDeleteThreadIds },
+            },
+            {
+              parentId: { in: diff.noteDeleteNoteIds },
+            },
+          ],
+        },
+      })
+    })
   }
 }

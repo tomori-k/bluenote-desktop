@@ -1,5 +1,6 @@
 import { testPrisma } from '../helper'
 import { SyncService } from '../../../src/main/services/sync_service'
+import { Diff } from '../../../src/main/sync/diff'
 
 describe('getAllNotesInThread', () => {
   testPrisma('ok', async (prisma) => {
@@ -726,6 +727,285 @@ describe('getUpdatedNotesInTree', () => {
         content: '',
         threadId: 'a',
         parentId: 'a_a',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-11-22T10:54:49Z'),
+        updatedAt: new Date('2023-11-22T10:54:49Z'),
+        modifiedAt: new Date('2023-11-22T10:54:49Z'),
+      },
+    ])
+  })
+})
+
+describe('updateByDiff', () => {
+  testPrisma('ok', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'b',
+          name: '',
+          displayMode: 'scrap',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        {
+          id: 'c',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-12-24T15:34:55Z'),
+          updatedAt: new Date('2023-12-24T15:34:55Z'),
+          modifiedAt: new Date('2023-12-24T15:34:55Z'),
+        },
+        {
+          id: 'd',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-12-24T15:34:55Z'),
+          updatedAt: new Date('2023-12-24T15:34:55Z'),
+          modifiedAt: new Date('2023-12-24T15:34:55Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'b_a',
+          content: '',
+          threadId: 'b',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        {
+          id: 'b_b',
+          content: '',
+          threadId: 'b',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        {
+          id: 'b_c',
+          content: '',
+          threadId: 'b',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        {
+          id: 'b_c_a',
+          content: '',
+          threadId: 'b',
+          parentId: 'b_c',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        {
+          id: 'd_a',
+          content: '',
+          threadId: 'd',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        {
+          id: 'd_a_a',
+          content: '',
+          threadId: 'd',
+          parentId: 'd_a',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const diff = new Diff()
+
+    diff.threadCreate.push({
+      id: 'a',
+      name: '',
+      displayMode: 'monologue',
+      trash: false,
+      deleted: false,
+      createdAt: new Date('2023-12-24T15:34:55Z'),
+      updatedAt: new Date('2023-12-24T15:34:55Z'),
+      modifiedAt: new Date('2023-12-24T15:34:55Z'),
+    })
+    diff.threadUpdate.push({
+      id: 'b',
+      name: '',
+      displayMode: 'monologue',
+      trash: false,
+      deleted: false,
+      createdAt: new Date('2023-12-24T15:34:55Z'),
+      updatedAt: new Date('2023-12-24T15:34:55Z'),
+      modifiedAt: new Date('2023-12-24T15:34:55Z'),
+    })
+    diff.threadDelete.push({
+      id: 'c',
+      name: '',
+      displayMode: 'monologue',
+      trash: false,
+      deleted: false,
+      createdAt: new Date('2023-12-24T15:34:55Z'),
+      updatedAt: new Date('2023-12-24T15:34:55Z'),
+      modifiedAt: new Date('2023-12-24T15:34:55Z'),
+    })
+
+    diff.noteCreate.push(
+      {
+        id: 'a_a',
+        content: '',
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-12-24T15:34:55Z'),
+        updatedAt: new Date('2023-12-24T15:34:55Z'),
+        modifiedAt: new Date('2023-12-24T15:34:55Z'),
+      },
+      {
+        id: 'a_a_a',
+        content: '',
+        threadId: 'a',
+        parentId: 'a_a',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-12-24T15:34:55Z'),
+        updatedAt: new Date('2023-12-24T15:34:55Z'),
+        modifiedAt: new Date('2023-12-24T15:34:55Z'),
+      }
+    )
+    diff.noteUpdate.push({
+      id: 'b_a',
+      content: '',
+      threadId: 'b',
+      parentId: null,
+      trash: false,
+      deleted: false,
+      createdAt: new Date('2023-12-24T15:34:55Z'),
+      updatedAt: new Date('2023-12-24T15:34:55Z'),
+      modifiedAt: new Date('2023-12-24T15:34:55Z'),
+    })
+    diff.noteDelete.push({
+      id: 'b_b',
+      content: '',
+      threadId: 'b',
+      parentId: null,
+      trash: false,
+      deleted: false,
+      createdAt: new Date('2023-12-24T15:34:55Z'),
+      updatedAt: new Date('2023-12-24T15:34:55Z'),
+      modifiedAt: new Date('2023-12-24T15:34:55Z'),
+    })
+    diff.noteDeleteThreadIds.push('d')
+    diff.noteDeleteNoteIds.push('b_c')
+
+    const syncService = new SyncService(prisma)
+
+    await syncService.updateByDiff(diff)
+
+    await expect(
+      prisma.thread.findMany({ orderBy: { id: 'asc' } })
+    ).resolves.toStrictEqual([
+      {
+        id: 'a',
+        name: '',
+        displayMode: 'monologue',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-12-24T15:34:55Z'),
+        updatedAt: new Date('2023-12-24T15:34:55Z'),
+        modifiedAt: new Date('2023-12-24T15:34:55Z'),
+      },
+      {
+        id: 'b',
+        name: '',
+        displayMode: 'monologue',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-12-24T15:34:55Z'),
+        updatedAt: new Date('2023-12-24T15:34:55Z'),
+        modifiedAt: new Date('2023-12-24T15:34:55Z'),
+      },
+      {
+        id: 'd',
+        name: '',
+        displayMode: 'monologue',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-12-24T15:34:55Z'),
+        updatedAt: new Date('2023-12-24T15:34:55Z'),
+        modifiedAt: new Date('2023-12-24T15:34:55Z'),
+      },
+    ])
+
+    await expect(
+      prisma.note.findMany({ orderBy: { id: 'asc' } })
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_a',
+        content: '',
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-12-24T15:34:55Z'),
+        updatedAt: new Date('2023-12-24T15:34:55Z'),
+        modifiedAt: new Date('2023-12-24T15:34:55Z'),
+      },
+      {
+        id: 'a_a_a',
+        content: '',
+        threadId: 'a',
+        parentId: 'a_a',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-12-24T15:34:55Z'),
+        updatedAt: new Date('2023-12-24T15:34:55Z'),
+        modifiedAt: new Date('2023-12-24T15:34:55Z'),
+      },
+      {
+        id: 'b_a',
+        content: '',
+        threadId: 'b',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('2023-12-24T15:34:55Z'),
+        updatedAt: new Date('2023-12-24T15:34:55Z'),
+        modifiedAt: new Date('2023-12-24T15:34:55Z'),
+      },
+      {
+        id: 'b_c',
+        content: '',
+        threadId: 'b',
+        parentId: null,
         trash: false,
         deleted: false,
         createdAt: new Date('2023-11-22T10:54:49Z'),
