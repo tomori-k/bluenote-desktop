@@ -1,5 +1,11 @@
+use std::sync::Arc;
+
 use napi::{bindgen_prelude::AsyncTask, Env, JsString, JsUndefined, Task};
 use napi_derive::napi;
+use tokio::{
+    sync::{broadcast, mpsc, Mutex},
+    task::JoinHandle,
+};
 use windows::{
     core::{GUID, HSTRING},
     Devices::{
@@ -46,8 +52,11 @@ pub async fn enumerate_sync_companions() -> windows::core::Result<Vec<String>> {
 struct SyncClientState {
     #[allow(dead_code)] // インスタンスを持っておいて、socket が drop して接続が切れないようにする
     socket: StreamSocket,
-    reader: DataReader,
-    writer: DataWriter,
+    reader: Arc<Mutex<DataReader>>,
+    writer: Arc<Mutex<DataWriter>>,
+    tx_finish: Arc<mpsc::Sender<String>>,
+    tx_uuid: Arc<broadcast::Sender<String>>,
+    handle: JoinHandle<Result<()>>,
 }
 
 #[napi]
@@ -141,10 +150,69 @@ impl SyncClient {
             return Err(Error::SyncError(format!("Sync not allowed")));
         }
 
+        let reader = Arc::new(Mutex::new(reader));
+        let writer = Arc::new(Mutex::new(writer));
+        let reader_response_receiver = Arc::clone(&reader);
+        let (tx_uuid, _) = broadcast::channel(16);
+        let (tx_finish, mut rx_finish) = mpsc::channel::<String>(16);
+        let tx_finish = Arc::new(tx_finish);
+        let tx_uuid = Arc::new(tx_uuid);
+        let tx_uuid_response_receiver = Arc::clone(&tx_uuid);
+
+        // レスポンスを受信するタスクの起動
+        let handle: JoinHandle<Result<()>> = tokio::spawn(async move {
+            println!("spawn local");
+
+            loop {
+                println!("waiting for response");
+
+                // UUID 取得
+
+                let mut buffer = vec![0u8; 36];
+
+                {
+                    let reader = reader_response_receiver.lock().await;
+
+                    println!("receive response uuid");
+
+                    reader.LoadAsync(36)?.await?;
+                    reader.ReadBytes(&mut buffer)?;
+                }
+
+                let uuid = match String::from_utf8(buffer) {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(Error::SyncError(format!("{}", e))),
+                }?;
+
+                println!("received response uuid: {}", uuid);
+
+                // レスポンスが来たという通知を送る
+                tx_uuid_response_receiver.send(uuid.to_owned()).unwrap(); // 一旦 unwrap
+
+                println!("waiting for finish id");
+
+                // レスポンスに対する処理完了を待つ
+                loop {
+                    if let Some(finish_id) = rx_finish.recv().await {
+                        if finish_id == uuid {
+                            break;
+                        }
+                    }
+                }
+
+                println!("finish: {}", uuid);
+            }
+        });
+
+        println!("task spawned");
+
         self.state = Some(SyncClientState {
             socket,
             reader,
             writer,
+            tx_finish,
+            tx_uuid,
+            handle,
         });
 
         Ok(())
@@ -159,25 +227,60 @@ impl SyncClient {
     async fn request_data_impl(&self, request_id: u8, uuid: &Option<String>) -> Result<String> {
         match &self.state {
             Some(state) => {
-                // 1. リクエスト ID の送信
-                state.writer.WriteByte(request_id)?;
+                println!("request id = {}", request_id);
 
-                // （必要であれば）UUID の送信
-                if let Some(uuid) = uuid {
-                    state.writer.WriteBytes(uuid.as_bytes())?;
+                // レスポンスを待つ用の受信チャネルを作成
+                let mut rx_uuid = state.tx_uuid.subscribe();
+
+                // リクエストの送信
+                {
+                    let writer = state.writer.lock().await;
+
+                    // 1. リクエスト ID の送信
+                    writer.WriteByte(request_id)?;
+
+                    // （必要であれば）UUID の送信
+                    if let Some(uuid) = uuid {
+                        writer.WriteBytes(uuid.as_bytes())?;
+                    }
+
+                    writer.StoreAsync()?.await?;
+                    writer.FlushAsync()?.await?;
                 }
 
-                state.writer.StoreAsync()?.await?;
-                state.writer.FlushAsync()?.await?;
+                println!("request sent");
+
+                // レスポンスを待つ
+                // スレッドの更新差分リクエストの時は UUID の代わりに 36 バイトの空白が送られる
+                let uuid = match uuid {
+                    Some(uuid) => uuid.to_owned(),
+                    None => " ".repeat(36).to_owned(),
+                };
+                {
+                    loop {
+                        if let Ok(response_id) = rx_uuid.recv().await {
+                            if response_id == uuid {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                println!("response received");
+
+                let reader = state.reader.lock().await;
 
                 // 2. データサイズ (4バイト) を取得
-                state.reader.LoadAsync(4)?.await?;
-                let size = state.reader.ReadUInt32()?;
+                reader.LoadAsync(4)?.await?;
+                let size = reader.ReadUInt32()?;
 
                 // 3. JSON 文字列の読み込み
                 let mut buffer = vec![0u8; size as usize];
-                state.reader.LoadAsync(size)?.await?;
-                state.reader.ReadBytes(&mut buffer)?;
+                reader.LoadAsync(size)?.await?;
+                reader.ReadBytes(&mut buffer)?;
+
+                // レスポンスの処理完了を通知
+                state.tx_finish.send(uuid).await.unwrap(); // 一旦 unwrap
 
                 match String::from_utf8(buffer) {
                     Ok(v) => Ok(v),
@@ -202,17 +305,24 @@ impl SyncClient {
     async fn end_sync_impl(&mut self, success: bool) -> Result<()> {
         match self.state.take() {
             Some(state) => {
+                // レスポンス受付タスクを終了
+
+                state.handle.abort();
+
                 // 同期の成功 or 失敗を送信
-                state
-                    .writer
-                    .WriteByte(if success { SYNC_SUCCESS } else { SYNC_FAILED })?;
-                state.writer.StoreAsync()?.await?;
-                state.writer.FlushAsync()?.await?;
+
+                let writer = state.writer.lock().await;
+
+                writer.WriteByte(if success { SYNC_SUCCESS } else { SYNC_FAILED })?;
+                writer.StoreAsync()?.await?;
+                writer.FlushAsync()?.await?;
 
                 if success {
+                    let reader = state.reader.lock().await;
+
                     // 相手側の DB 更新のACKを受信
-                    state.reader.LoadAsync(1)?.await?;
-                    let ack = state.reader.ReadByte()?;
+                    reader.LoadAsync(1)?.await?;
+                    let ack = reader.ReadByte()?;
 
                     match ack {
                         SYNC_SUCCESS => Ok(()),
@@ -240,6 +350,14 @@ impl SyncClient {
             client: self,
             success,
         })
+    }
+}
+
+impl Drop for SyncClient {
+    fn drop(&mut self) {
+        if let Some(state) = self.state.take() {
+            state.handle.abort();
+        }
     }
 }
 
