@@ -1,11 +1,11 @@
-# Bluenote 同期プロトコル v2
+# Bluenote 同期プロトコル v1
 
 ## 状態遷移図
 
 ```mermaid
 
 ---
-title: Bluenote Sync Protocol(Client) v2
+title: Bluenote Sync Protocol(Client) v1
 ---
 
 stateDiagram-v2
@@ -44,7 +44,7 @@ stateDiagram-v2
 ```mermaid
 
 ---
-title: Bluenote Sync Protocol(Server) v2
+title: Bluenote Sync Protocol(Server) v1
 ---
 
 stateDiagram-v2

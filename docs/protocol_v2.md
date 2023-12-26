@@ -1,6 +1,6 @@
-# Bluenote 同期プロトコル v3
+# Bluenote 同期プロトコル v2
 
-## v2 との違い
+## v1 との違い
 
 データ取得フェーズで、データ要求とデータ受信を並行して行うように変更。
 変更に伴って、各リクエストにリクエスト ID を付与するように変更する。
@@ -28,7 +28,7 @@ n 個のデータ取得リクエストを送るとし、通信には x 秒の遅
 ```mermaid
 
 ---
-title: Bluenote Sync Protocol(Client) v3
+title: Bluenote Sync Protocol(Client) v2
 ---
 
 stateDiagram-v2
@@ -69,7 +69,7 @@ stateDiagram-v2
 ```mermaid
 
 ---
-title: Bluenote Sync Protocol(Server) v3
+title: Bluenote Sync Protocol(Server) v2
 ---
 
 stateDiagram-v2
