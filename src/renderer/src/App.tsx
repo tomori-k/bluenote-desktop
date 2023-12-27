@@ -12,6 +12,7 @@ import DeleteIcon from './components/icons/DeleteIcon'
 import SearchIcon from './components/icons/SearchIcon'
 import Settings from './components/Settings'
 import SyncIcon from './components/icons/SyncIcon'
+import AppLayout from './components/AppLayout'
 
 function useDebounce<T>(value: T) {
   const [debouncedValue, setDebouncedValue] = useState(value)
@@ -104,66 +105,73 @@ function App() {
           <SyncIcon isRotating={isSyncing} />
         </button>
       </div>
-      <div className="grid grid-cols-[auto_1fr_auto_auto_auto] grid-rows-[minmax(0,_1fr)]">
-        {isSideMenuOpen ? (
-          <SideMenu
-            selectedThraed={selection.thread}
-            onThreadSelected={(x) => setSelection({ thread: x, note: null })}
-            onTrashClicked={() => setIsTrashViewOpen(!isTrashViewOpen)}
-            onSettingsClicked={() => setIsSettingsModalOpen(true)}
+      <AppLayout
+        sideMenu={
+          isSideMenuOpen ? (
+            <SideMenu
+              selectedThraed={selection.thread}
+              onThreadSelected={(x) => setSelection({ thread: x, note: null })}
+              onTrashClicked={() => setIsTrashViewOpen(!isTrashViewOpen)}
+              onSettingsClicked={() => setIsSettingsModalOpen(true)}
+            />
+          ) : null
+        }
+        mainView={
+          <ThreadView
+            thread={selection.thread}
+            key={selection.thread?.id}
+            onNoteClicked={onNoteInThreadClicked}
           />
-        ) : (
-          <div />
-        )}
-
-        <ThreadView
-          thread={selection.thread}
-          key={selection.thread?.id}
-          onNoteClicked={onNoteInThreadClicked}
-        />
-
-        {selection.thread != null && selection.note != null && (
-          <Closable
-            header={
-              <ClosableTabHeader
-                icon={<TextBulletListTreeIcon />}
-                title={selection.note.content.slice(0, 10)}
+        }
+        tabs={[
+          selection.thread != null && selection.note != null ? (
+            <Closable
+              key={'tree'}
+              header={
+                <ClosableTabHeader
+                  icon={<TextBulletListTreeIcon />}
+                  title={selection.note.content.slice(0, 10)}
+                />
+              }
+              onClose={() => setSelection({ ...selection, note: null })}
+            >
+              <Tree
+                thread={selection.thread}
+                parentNote={selection.note}
+                key={selection.note.id}
               />
-            }
-            onClose={() => setSelection({ ...selection, note: null })}
-          >
-            <Tree
-              thread={selection.thread}
-              parentNote={selection.note}
-              key={selection.note.id}
-            />
-          </Closable>
-        )}
+            </Closable>
+          ) : null,
 
-        {isSearchViewOpen && selection.thread != null && (
-          <Closable
-            header={
-              <ClosableTabHeader icon={<SearchIcon />} title="検索結果" />
-            }
-            onClose={() => setIsSearchViewOpen(false)}
-          >
-            <Search
-              key={searchTextDebounced}
-              thread={selection.thread}
-              searchText={searchTextDebounced}
-            />
-          </Closable>
-        )}
+          isSearchViewOpen && selection.thread != null ? (
+            <Closable
+              key={'search'}
+              header={
+                <ClosableTabHeader icon={<SearchIcon />} title="検索結果" />
+              }
+              onClose={() => setIsSearchViewOpen(false)}
+            >
+              <Search
+                key={searchTextDebounced}
+                thread={selection.thread}
+                searchText={searchTextDebounced}
+              />
+            </Closable>
+          ) : null,
 
-        {isTrashViewOpen && (
-          <Closable
-            header={<ClosableTabHeader icon={<DeleteIcon />} title="ごみ箱" />}
-            onClose={() => setIsTrashViewOpen(false)}
-          >
-            <Trash />
-          </Closable>
-        )}
-      </div>
+          isTrashViewOpen ? (
+            <Closable
+              key={'trash'}
+              header={
+                <ClosableTabHeader icon={<DeleteIcon />} title="ごみ箱" />
+              }
+              onClose={() => setIsTrashViewOpen(false)}
+            >
+              <Trash />
+            </Closable>
+          ) : null,
+        ]}
+      />
       {isSettingsModalOpen && (
         <Settings onClose={() => setIsSettingsModalOpen(false)} />
       )}

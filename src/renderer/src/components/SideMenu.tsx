@@ -239,7 +239,7 @@ export default function SideMenu({
   }
 
   return (
-    <div className="text-midnight-50 bg-midnight-300 dark:bg-midnight-950 w-52 px-2">
+    <div className="text-midnight-50 bg-midnight-300 dark:bg-midnight-950 px-2">
       <div className="flex h-11 items-center justify-between">
         <h2 className="flex items-center gap-3 pl-2 text-base">
           <ThreadIcon />
