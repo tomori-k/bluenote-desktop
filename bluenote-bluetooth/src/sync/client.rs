@@ -51,7 +51,7 @@ pub async fn enumerate_sync_companions() -> windows::core::Result<Vec<String>> {
 
 struct SyncClientState {
     #[allow(dead_code)] // インスタンスを持っておいて、socket が drop して接続が切れないようにする
-    socket: StreamSocket,
+    socket: Arc<Mutex<StreamSocket>>,
     reader: Arc<Mutex<DataReader>>,
     writer: Arc<Mutex<DataWriter>>,
     tx_finish: Arc<mpsc::Sender<String>>,
@@ -150,23 +150,35 @@ impl SyncClient {
             return Err(Error::SyncError(format!("Sync not allowed")));
         }
 
-        let reader = Arc::new(Mutex::new(reader));
-        let writer = Arc::new(Mutex::new(writer));
-        let reader_response_receiver = Arc::clone(&reader);
         let (tx_uuid, _) = broadcast::channel(16);
         let (tx_finish, rx_finish) = mpsc::channel::<String>(16);
+
+        let socket = Arc::new(Mutex::new(socket));
+        let reader = Arc::new(Mutex::new(reader));
+        let writer = Arc::new(Mutex::new(writer));
         let tx_finish = Arc::new(tx_finish);
         let tx_uuid = Arc::new(tx_uuid);
+
+        let reader_response_receiver = Arc::clone(&reader);
         let tx_uuid_response_receiver = Arc::clone(&tx_uuid);
+        let socket_closer = Arc::clone(&socket);
 
         // レスポンスを受信するタスクの起動
-        let handle: JoinHandle<Result<()>> = tokio::spawn(Self::receive_response(
-            reader_response_receiver,
-            tx_uuid_response_receiver,
-            rx_finish,
-        ));
-
-        println!("task spawned");
+        let handle: JoinHandle<Result<()>> = tokio::spawn(async move {
+            tokio::select! {
+                _ = Self::receive_response(
+                    reader_response_receiver,
+                    tx_uuid_response_receiver,
+                    rx_finish,
+                ) => {}
+                _ = async {
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                } => {
+                    socket_closer.lock().await.Close()?;
+                }
+            }
+            Ok(())
+        });
 
         self.state = Some(SyncClientState {
             socket,
