@@ -154,55 +154,17 @@ impl SyncClient {
         let writer = Arc::new(Mutex::new(writer));
         let reader_response_receiver = Arc::clone(&reader);
         let (tx_uuid, _) = broadcast::channel(16);
-        let (tx_finish, mut rx_finish) = mpsc::channel::<String>(16);
+        let (tx_finish, rx_finish) = mpsc::channel::<String>(16);
         let tx_finish = Arc::new(tx_finish);
         let tx_uuid = Arc::new(tx_uuid);
         let tx_uuid_response_receiver = Arc::clone(&tx_uuid);
 
         // レスポンスを受信するタスクの起動
-        let handle: JoinHandle<Result<()>> = tokio::spawn(async move {
-            println!("spawn local");
-
-            loop {
-                println!("waiting for response");
-
-                // UUID 取得
-
-                let mut buffer = vec![0u8; 36];
-
-                {
-                    let reader = reader_response_receiver.lock().await;
-
-                    println!("receive response uuid");
-
-                    reader.LoadAsync(36)?.await?;
-                    reader.ReadBytes(&mut buffer)?;
-                }
-
-                let uuid = match String::from_utf8(buffer) {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(Error::SyncError(format!("{}", e))),
-                }?;
-
-                println!("received response uuid: {}", uuid);
-
-                // レスポンスが来たという通知を送る
-                tx_uuid_response_receiver.send(uuid.to_owned()).unwrap(); // 一旦 unwrap
-
-                println!("waiting for finish id");
-
-                // レスポンスに対する処理完了を待つ
-                loop {
-                    if let Some(finish_id) = rx_finish.recv().await {
-                        if finish_id == uuid {
-                            break;
-                        }
-                    }
-                }
-
-                println!("finish: {}", uuid);
-            }
-        });
+        let handle: JoinHandle<Result<()>> = tokio::spawn(Self::receive_response(
+            reader_response_receiver,
+            tx_uuid_response_receiver,
+            rx_finish,
+        ));
 
         println!("task spawned");
 
@@ -216,6 +178,47 @@ impl SyncClient {
         });
 
         Ok(())
+    }
+
+    /// レスポンスを受信し、リクエスト待ちに対して通知を送る
+    async fn receive_response(
+        reader: Arc<Mutex<DataReader>>,
+        tx_uuid: Arc<broadcast::Sender<String>>,
+        mut rx_finish: mpsc::Receiver<String>,
+    ) -> Result<()> {
+        loop {
+            // UUID 取得
+
+            let mut buffer = vec![0u8; 36];
+
+            {
+                let reader = reader.lock().await;
+
+                reader.LoadAsync(36)?.await?;
+                reader.ReadBytes(&mut buffer)?;
+            }
+
+            let uuid = match String::from_utf8(buffer) {
+                Ok(v) => Ok(v),
+                Err(e) => Err(Error::SyncError(format!("{}", e))),
+            }?;
+
+            println!("received response uuid: {}", uuid);
+
+            // レスポンスが来たという通知を送る
+            tx_uuid.send(uuid.to_owned()).unwrap(); // 一旦 unwrap
+
+            // レスポンスに対する処理完了を待つ
+            loop {
+                if let Some(finish_id) = rx_finish.recv().await {
+                    if finish_id == uuid {
+                        break;
+                    }
+                }
+            }
+
+            println!("finish: {}", uuid);
+        }
     }
 
     /// 同期を開始する
@@ -303,6 +306,7 @@ impl SyncClient {
     }
 
     async fn end_sync_impl(&mut self, success: bool) -> Result<()> {
+        // state で持っている socket を drop して接続を切る
         match self.state.take() {
             Some(state) => {
                 // レスポンス受付タスクを終了
@@ -310,36 +314,30 @@ impl SyncClient {
                 state.handle.abort();
 
                 // 同期の成功 or 失敗を送信
+                {
+                    let writer = state.writer.lock().await;
 
-                let writer = state.writer.lock().await;
-
-                writer.WriteByte(if success { SYNC_SUCCESS } else { SYNC_FAILED })?;
-                writer.StoreAsync()?.await?;
-                writer.FlushAsync()?.await?;
+                    writer.WriteByte(if success { SYNC_SUCCESS } else { SYNC_FAILED })?;
+                    writer.StoreAsync()?.await?;
+                    writer.FlushAsync()?.await?;
+                }
 
                 if success {
-                    let reader = state.reader.lock().await;
+                    // 相手がデータを読むまでに切断してしまうと、こちらから送った
+                    // 同期の成功可否が届かないことがあるため、相手からの ACK を
+                    // 待つという体で、相手が切断するのを待つ
 
-                    // 相手側の DB 更新のACKを受信
-                    reader.LoadAsync(1)?.await?;
-                    let ack = reader.ReadByte()?;
-
-                    match ack {
-                        SYNC_SUCCESS => Ok(()),
-                        // 相手側が DB の保存に失敗した
-                        // 同期時刻の保存に失敗した=次回の同期に少し無駄が生じる
-                        // まああまり問題ではない
-                        _ => Err(Error::SyncError(format!(
-                            "The sync companion responded an error: {}",
-                            ack
-                        ))),
+                    let _: Result<()> = async {
+                        let reader = state.reader.lock().await;
+                        reader.LoadAsync(1)?.await?;
+                        Ok(())
                     }
-                } else {
-                    // 同期エラーのときはエラー通知をして接続を終了
-                    Ok(())
+                    .await;
                 }
+
+                Ok(())
             }
-            None => Ok(()),
+            None => Err(Error::SyncError(format!("Sync not started."))),
         }
     }
 
