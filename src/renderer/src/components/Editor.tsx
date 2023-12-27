@@ -21,7 +21,7 @@ export default function Editor({
   return (
     <div className="border-t-midnight-100 relative border-t dark:border-t-0">
       <textarea
-        className="bg-midnight-50 dark:bg-midnight-900 h-40 w-full resize-none pl-4 pt-3 font-mono text-sm outline-none"
+        className="bg-midnight-50 dark:bg-midnight-900 block h-40 w-full resize-none pl-4 pt-3 font-mono text-sm outline-none"
         itemType="text"
         placeholder="メモを入力"
         value={text}
