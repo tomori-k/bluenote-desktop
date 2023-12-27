@@ -4,6 +4,7 @@ import { HoverMenu, HoverMenuItem } from './HoverMenu'
 import DeleteIcon from './icons/DeleteIcon'
 import EditIcon from './icons/EditIcon'
 import TextBulletListTreeIcon from './icons/TextBulletListTreeIcon'
+import { toHtml } from '../markdown/markdown'
 
 function formatTime(date: Date) {
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
@@ -74,7 +75,10 @@ export default function NoteListMonologue({
                   >
                     {formatTime(note.createdAt)}
                   </p>
-                  <p className="break-all text-sm">{note.content}</p>
+                  <p
+                    className="break-all text-sm"
+                    dangerouslySetInnerHTML={{ __html: toHtml(note.content) }}
+                  />
                   <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
                     <HoverMenuItem onClick={() => onNoteClicked(note)}>
                       <TextBulletListTreeIcon className="fill-midnight-50" />

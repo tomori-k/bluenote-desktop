@@ -4,6 +4,7 @@ import TextBulletListTreeIcon from './icons/TextBulletListTreeIcon'
 import EditIcon from './icons/EditIcon'
 import DeleteIcon from './icons/DeleteIcon'
 import { HoverMenu, HoverMenuItem } from './HoverMenu'
+import { toHtml } from '../markdown/markdown'
 
 // LocalTime の YYYY-MM-DD HH:mm の形式にフォーマットする
 function formatDate(date: Date) {
@@ -69,7 +70,10 @@ export default function NoteListScrap({
               <p className="p-2 text-right text-xs">
                 {formatDate(x.createdAt)}
               </p>
-              <p className="break-all pb-4 pl-4 text-sm">{x.content}</p>
+              <p
+                className="break-all pb-4 pl-4 text-sm"
+                dangerouslySetInnerHTML={{ __html: toHtml(x.content) }}
+              />
               <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
                 <HoverMenuItem onClick={() => onNoteClicked(x)}>
                   <TextBulletListTreeIcon className="fill-midnight-50" />

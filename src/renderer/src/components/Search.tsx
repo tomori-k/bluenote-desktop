@@ -1,5 +1,6 @@
 import { Note, Thread } from '@prisma/client'
 import { useEffect, useRef, useState } from 'react'
+import { toHtml } from '../markdown/markdown'
 
 type SearchProps = {
   thread: Thread
@@ -86,7 +87,10 @@ export default function Search({ thread, searchText }: SearchProps) {
               <p className="text-xs">{note.createdAt.toUTCString()}</p>
             </div>
 
-            <p className="pb-4 pl-4 text-sm">{note.content}</p>
+            <p
+              className="pb-4 pl-4 text-sm"
+              dangerouslySetInnerHTML={{ __html: toHtml(note.content) }}
+            />
           </li>
         ))}
         {!hasLoadedAll && <li ref={refLoading}>Loading</li>}

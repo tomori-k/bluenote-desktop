@@ -3,6 +3,7 @@ import { Note } from '@prisma/client'
 import ArrowUndoIcon from './icons/ArrowUndoIcon'
 import DeleteForeverIcon from './icons/DeleteForeverIcon'
 import { HoverMenu, HoverMenuItem } from './HoverMenu'
+import { toHtml } from '../markdown/markdown'
 
 function useTrashNoteList(
   loadNext: (lastId: string | null, count: number) => Promise<Note[]>,
@@ -110,7 +111,10 @@ export default function Trash() {
                 <p className="text-xs">{note.createdAt.toUTCString()}</p>
               </div>
 
-              <p className="pb-4 pl-4 text-sm">{note.content}</p>
+              <p
+                className="pb-4 pl-4 text-sm"
+                dangerouslySetInnerHTML={{ __html: toHtml(note.content) }}
+              />
               <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
                 <HoverMenuItem onClick={() => onNoteRestoreClicked(note)}>
                   <ArrowUndoIcon />
