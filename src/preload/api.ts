@@ -34,6 +34,19 @@ export const api = {
     await ipcRenderer.invoke(IpcInvokeChannel.RemoveThread, threadId)
   },
 
+  async findNotes(
+    searchText: string,
+    lastId: string | null,
+    count: number
+  ): Promise<Note[]> {
+    return await ipcRenderer.invoke(
+      IpcInvokeChannel.FindNotes,
+      searchText,
+      lastId,
+      count
+    )
+  },
+
   async findNotesInThread(
     thread: Thread,
     searchText: string,

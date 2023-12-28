@@ -34,6 +34,7 @@ const _NewIpcChannel = {
   RemoveThread: 'remove-thread',
 
   // note
+  FindNotes: 'find-notes',
   FindNotesInThread: 'find-notes-in-thread',
   FindNotesInTree: 'find-notes-in-tree',
   FindNotesInTrash: 'find-notes-in-trash',

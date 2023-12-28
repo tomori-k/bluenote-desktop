@@ -1,7 +1,10 @@
 import { Note } from '../../../src/common/note'
 import { Thread } from '../../../src/common/thread'
 import { ISyncCompanion } from '../../../src/main/sync/companion'
-import { INoteService } from '../../../src/main/services/note_service'
+import {
+  INoteService,
+  NoteWithThreadName,
+} from '../../../src/main/services/note_service'
 import { IThreadService } from '../../../src/main/services/thread_service'
 
 /**
@@ -91,11 +94,19 @@ export class MockNoteService implements INoteService {
     throw new Error('Method not implemented.')
   }
 
+  findNotes(
+    searchText: string,
+    lastId: string,
+    count: number
+  ): Promise<NoteWithThreadName[]> {
+    throw new Error('Method not implemented.')
+  }
+
   findInTrash(
     searchText: string,
     lastId: string,
     count: number
-  ): Promise<Note[]> {
+  ): Promise<NoteWithThreadName[]> {
     throw new Error('Method not implemented.')
   }
 

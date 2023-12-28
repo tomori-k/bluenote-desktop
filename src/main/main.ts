@@ -254,6 +254,15 @@ const createWindow = async () => {
       await threadService.remove(thread)
     },
 
+    [IpcInvokeChannel.FindNotes]: async (
+      _: Electron.IpcMainInvokeEvent,
+      searchText: string,
+      lastId: string | null,
+      count: number
+    ) => {
+      return await noteService.findNotes(searchText, lastId, count)
+    },
+
     [IpcInvokeChannel.FindNotesInThread]: async (
       _: Electron.IpcMainInvokeEvent,
       thread: Thread,
@@ -365,6 +374,8 @@ const createWindow = async () => {
 
         const companion = new SyncCompanion(syncClient)
         const d = await diff(companion, threadService, noteService, new Date())
+
+        console.log('diff', d)
 
         await syncService.updateByDiff(d)
 

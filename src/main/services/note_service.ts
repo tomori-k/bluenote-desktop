@@ -1,7 +1,7 @@
-import { PrismaClient } from '@prisma/client'
-import { Note } from '../../common/note'
-import { Thread } from '../../common/thread'
+import { Note, PrismaClient, Thread } from '@prisma/client'
 import { ThreadService } from './thread_service'
+
+export type NoteWithThreadName = Note & { threadName: string }
 
 export interface INoteService {
   /**
@@ -49,6 +49,18 @@ export interface INoteService {
   ): Promise<Note[]>
 
   /**
+   * メモを検索して作成日時降順で取得する
+   * @param searchText 検索文字列
+   * @param lastId 前回取得したメモのうち最後の ID。このメモ以降のメモ（自身は含めない）を取得する
+   * @param count 取得するデータの数
+   */
+  findNotes(
+    searchText: string,
+    lastId: string | null,
+    count: number
+  ): Promise<NoteWithThreadName[]>
+
+  /**
    * ごみ箱にあるメモを作成日時昇順で取得する
    * @param searchText 検索文字列
    * @param lastId 前回取得したメモのうち最後の ID。このメモ以降のメモ（自身は含めない）を取得する
@@ -58,7 +70,7 @@ export interface INoteService {
     searchText: string,
     lastId: string | null,
     count: number
-  ): Promise<Note[]>
+  ): Promise<NoteWithThreadName[]>
 
   /**
    * スレッドにメモを作成する
@@ -163,7 +175,7 @@ export class NoteService implements INoteService {
    * @param threadId スレッド ID (UUID)
    * @param parentId 親のメモの ID (UUID)
    */
-  private async findNotes(
+  private async findNotes_Impl(
     trash: boolean,
     searchText: string,
     lastId: string | null,
@@ -171,24 +183,31 @@ export class NoteService implements INoteService {
     desc: boolean,
     threadId?: string,
     parentId?: string | null
-  ): Promise<Note[]> {
+  ) {
+    // threadId が指定されていないときは、結果にスレッド名を含める
     let query = `
       SELECT
-        id,
-        content,
-        thread_id AS threadId,
-        parent_id AS parentId,
-        trash,
-        deleted,
-        created_at AS createdAt,
-        updated_at AS updatedAt,
-        modified_at AS modifiedAt
+        note.id AS id,
+        note.content AS content,
+        note.thread_id AS threadId,
+        note.parent_id AS parentId,
+        note.trash AS trash,
+        note.deleted AS deleted,
+        note.created_at AS createdAt,
+        note.updated_at AS updatedAt,
+        note.modified_at AS modifiedAt
+        ${typeof threadId === 'undefined' ? ',thread.name AS threadName' : ''}
       FROM
         note
+      ${
+        typeof threadId === 'undefined'
+          ? 'INNER JOIN thread ON note.thread_id = thread.id'
+          : ''
+      }
       WHERE
-        trash = $1 AND
-        deleted = 0 AND
-        content LIKE '%' || $2 || '%' ESCAPE '#'`
+        note.trash = $1 AND
+        note.deleted = 0 AND
+        note.content LIKE '%' || $2 || '%' ESCAPE '#'`
 
     const searchTextEscaped = searchText.replace(/[#%_]/g, '#$&')
     const params = [trash, searchTextEscaped] as any[]
@@ -208,7 +227,8 @@ export class NoteService implements INoteService {
             ).createdAt
           : new Date(0)
 
-      query += ' AND (created_at > $3 OR (created_at = $3 AND id > $4))'
+      query +=
+        ' AND (note.created_at > $3 OR (note.created_at = $3 AND note.id > $4))'
       params.push(lastCreatedAt, lastId ?? '')
     } else {
       // 前回取得したページの最後のメモの更新日時
@@ -224,35 +244,34 @@ export class NoteService implements INoteService {
             ).createdAt
           : new Date('9999-12-31T23:59:59Z')
 
-      query += ' AND (created_at < $3 OR (created_at = $3 AND id > $4))'
+      query +=
+        ' AND (note.created_at < $3 OR (note.created_at = $3 AND note.id > $4))'
 
       params.push(lastCreatedAt, lastId ?? '')
     }
 
     if (threadId != null) {
-      query += ' AND thread_id = $5'
+      query += ' AND note.thread_id = $5'
       params.push(threadId)
-    } else if (threadId === null) {
-      query += ' AND thread_id IS NULL'
     }
 
     if (parentId != null) {
-      query += ' AND parent_id = $6'
+      query += ' AND note.parent_id = $6'
       params.push(parentId)
     } else if (parentId === null) {
-      query += ' AND parent_id IS NULL'
+      query += ' AND note.parent_id IS NULL'
     }
 
     if (!desc) {
-      query += ' ORDER BY created_at ASC, id ASC'
+      query += ' ORDER BY note.created_at ASC, note.id ASC'
     } else {
-      query += ' ORDER BY created_at DESC, id ASC'
+      query += ' ORDER BY note.created_at DESC, note.id ASC'
     }
 
     query += ' LIMIT $7'
     params.push(count)
 
-    return await this.prisma.$queryRawUnsafe(query, ...params)
+    return (await this.prisma.$queryRawUnsafe(query, ...params)) as any // 屈辱の any
   }
 
   public async findInThread(
@@ -264,7 +283,7 @@ export class NoteService implements INoteService {
   ): Promise<Note[]> {
     await this.ensureThreadExists(thread)
 
-    return await this.findNotes(
+    return await this.findNotes_Impl(
       false,
       searchText,
       lastId,
@@ -284,7 +303,7 @@ export class NoteService implements INoteService {
   ): Promise<Note[]> {
     await this.ensureNoteExists(parent)
 
-    return await this.findNotes(
+    return await this.findNotes_Impl(
       false,
       searchText,
       lastId,
@@ -299,8 +318,16 @@ export class NoteService implements INoteService {
     searchText: string,
     lastId: string | null,
     count: number
-  ): Promise<Note[]> {
-    return await this.findNotes(true, searchText, lastId, count, false)
+  ): Promise<NoteWithThreadName[]> {
+    return await this.findNotes_Impl(true, searchText, lastId, count, false)
+  }
+
+  public async findNotes(
+    searchText: string,
+    lastId: string | null,
+    count: number
+  ): Promise<NoteWithThreadName[]> {
+    return await this.findNotes_Impl(false, searchText, lastId, count, true)
   }
 
   public async createInThread(content: string, thread: Thread): Promise<Note> {
