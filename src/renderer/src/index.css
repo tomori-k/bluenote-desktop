@@ -38,3 +38,60 @@ https://www.electronjs.org/ja/docs/latest/tutorial/window-customization#%E3%83%8
     -webkit-app-region: no-drag;
   }
 }
+
+/**
+ * マークダウンの CSS
+ */
+@layer base {
+  /* p */
+
+  /* a */
+
+  .markdown-body a {
+    @apply text-blue-600 hover:text-blue-500;
+  }
+
+  /* blockquote */
+
+  .markdown-body blockquote {
+    @apply border-l-midnight-400 text-midnight-300 mx-2 border-l-4 pl-2;
+  }
+
+  /* code(inline) */
+
+  .markdown-body p code,
+  .markdown-body li code,
+  .markdown-body td code {
+    @apply bg-midnight-600 rounded px-1.5 py-0.5 text-xs;
+  }
+
+  /* list */
+
+  .markdown-body ul,
+  .markdown-body ol {
+    @apply list-inside list-disc;
+  }
+
+  .markdown-body ul ul {
+    @apply pl-4;
+  }
+
+  .markdown-body ol {
+    list-style-type: decimal;
+  }
+
+  .markdown-body ol ol {
+    @apply pl-4;
+    list-style-type: lower-alpha;
+  }
+
+  .markdown-body ol ol ol {
+    list-style-type: lower-greek;
+  }
+
+  /* code block */
+  .markdown-body pre > code {
+    /* group-hover 使ってるので最悪です、まあでもしかたない。 */
+    @apply bg-midnight-700 group-hover:bg-midnight-800 rounded-md p-2;
+  }
+}

@@ -79,7 +79,7 @@ export default memo(function Search({ thread, searchText }: SearchProps) {
 
       <ul className="divide-midnight-100 dark:divide-midnight-600 divide-y overflow-y-auto">
         {notes.map((note) => (
-          <li className="hover:dark:bg-midnight-700" key={note.id}>
+          <li className="hover:dark:bg-midnight-700 group" key={note.id}>
             <div className="flex items-center justify-between gap-2 p-2">
               <p className="dark:bg-midnight-500 rounded-md px-4 py-1 text-xs">
                 スレッド名をここに
@@ -88,7 +88,7 @@ export default memo(function Search({ thread, searchText }: SearchProps) {
             </div>
 
             <p
-              className="pb-4 pl-4 text-sm"
+              className="markdown-body pb-4 pl-4 text-sm"
               dangerouslySetInnerHTML={{ __html: toHtml(note.content) }}
             />
           </li>

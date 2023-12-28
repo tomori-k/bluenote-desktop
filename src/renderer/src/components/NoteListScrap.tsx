@@ -71,7 +71,7 @@ export default function NoteListScrap({
                 {formatDate(x.createdAt)}
               </p>
               <p
-                className="break-all pb-4 pl-4 text-sm"
+                className="markdown-body break-all pb-4 pl-4 text-sm"
                 dangerouslySetInnerHTML={{ __html: toHtml(x.content) }}
               />
               <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">

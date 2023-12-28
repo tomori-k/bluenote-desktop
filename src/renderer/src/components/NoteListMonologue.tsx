@@ -76,7 +76,7 @@ export default function NoteListMonologue({
                     {formatTime(note.createdAt)}
                   </p>
                   <p
-                    className="break-all text-sm"
+                    className="markdown-body break-all text-sm"
                     dangerouslySetInnerHTML={{ __html: toHtml(note.content) }}
                   />
                   <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">

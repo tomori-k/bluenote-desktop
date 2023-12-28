@@ -112,7 +112,7 @@ export default memo(function Trash() {
               </div>
 
               <p
-                className="pb-4 pl-4 text-sm"
+                className="markdown-body pb-4 pl-4 text-sm"
                 dangerouslySetInnerHTML={{ __html: toHtml(note.content) }}
               />
               <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
