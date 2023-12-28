@@ -5,6 +5,7 @@ import { Note } from '../common/note'
 import { Device } from '@prisma/client'
 
 type ThreadCreate = Pick<Thread, 'name'>
+type NoteWithThreadName = Note & { threadName: string }
 
 export const api = {
   async getAllThreads(): Promise<Thread[]> {
@@ -38,7 +39,7 @@ export const api = {
     searchText: string,
     lastId: string | null,
     count: number
-  ): Promise<Note[]> {
+  ): Promise<NoteWithThreadName[]> {
     return await ipcRenderer.invoke(
       IpcInvokeChannel.FindNotes,
       searchText,

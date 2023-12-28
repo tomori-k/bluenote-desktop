@@ -157,7 +157,7 @@ function App() {
             </Closable>
           ) : null,
 
-          isSearchViewOpen && selection.thread != null ? (
+          isSearchViewOpen ? (
             <Closable
               key={'search'}
               header={
@@ -167,7 +167,6 @@ function App() {
             >
               <Search
                 key={searchTextDebounced}
-                thread={selection.thread}
                 searchText={searchTextDebounced}
               />
             </Closable>

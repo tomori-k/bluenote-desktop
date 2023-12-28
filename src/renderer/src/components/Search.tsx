@@ -1,18 +1,34 @@
-import { Note, Thread } from '@prisma/client'
+import { Note } from '@prisma/client'
 import { useEffect, useRef, useState, memo } from 'react'
 import { toHtml } from '../markdown/markdown'
 
+// LocalTime の YYYY-MM-DD HH:mm の形式にフォーマットする
+function formatDate(date: Date) {
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+  const year = date.getFullYear()
+  const month = pad(date.getMonth() + 1)
+  const day = pad(date.getDate())
+  const hour = pad(date.getHours())
+  const minute = pad(date.getMinutes())
+
+  return `${year}-${month}-${day} ${hour}:${minute}`
+}
+
 type SearchProps = {
-  thread: Thread
   searchText: string
 }
 
+type NoteWithThreadName = Note & { threadName: string }
+
 function useSearchNoteList(
-  loadNext: (lastId: string | null, count: number) => Promise<Note[]>
+  loadNext: (
+    lastId: string | null,
+    count: number
+  ) => Promise<NoteWithThreadName[]>
 ) {
   const [hasErrorOccured, setHasErrorOccured] = useState(false)
   const [hasLoadedAll, setHasLoadedAll] = useState(false)
-  const [notes, setNotes] = useState<Note[]>([])
+  const [notes, setNotes] = useState<NoteWithThreadName[]>([])
 
   async function onReachedLast() {
     const count = 100 // ページ単位
@@ -39,16 +55,10 @@ function useSearchNoteList(
 // TODO: 検索部分の仕様をちゃんと決める
 // 特に検索範囲: 全体(ごみ箱含める)、ごみ箱以外、開いてるスレッド、その他 (?)
 // 一旦今開いているスレッドのメモを検索することにする
-export default memo(function Search({ thread, searchText }: SearchProps) {
+export default memo(function Search({ searchText }: SearchProps) {
   const { notes, hasLoadedAll, hasErrorOccured, onReachedLast } =
     useSearchNoteList((lastId, count) => {
-      return window.api.findNotesInThread(
-        thread,
-        searchText,
-        lastId,
-        count,
-        true
-      )
+      return window.api.findNotes(searchText, lastId, count)
     })
   const refLoading = useRef<HTMLLIElement>(null)
   const refOnReachedLast = useRef(() => {})
@@ -82,13 +92,13 @@ export default memo(function Search({ thread, searchText }: SearchProps) {
           <li className="hover:dark:bg-midnight-700 group" key={note.id}>
             <div className="flex items-center justify-between gap-2 p-2">
               <p className="dark:bg-midnight-500 rounded-md px-4 py-1 text-xs">
-                スレッド名をここに
+                {note.threadName}
               </p>
-              <p className="text-xs">{note.createdAt.toUTCString()}</p>
+              <p className="text-xs">{formatDate(note.createdAt)}</p>
             </div>
 
             <p
-              className="markdown-body pb-4 pl-4 text-sm"
+              className="markdown-body break-all pb-4 pl-4 text-sm"
               dangerouslySetInnerHTML={{ __html: toHtml(note.content) }}
             />
           </li>
