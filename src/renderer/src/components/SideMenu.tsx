@@ -261,7 +261,7 @@ export default function SideMenu({
           return (
             <li
               className={
-                'flex h-8 items-center justify-between rounded-md px-3 text-sm' +
+                'flex items-center justify-between rounded-md px-3 py-1 text-sm' +
                 (thread === selectedThraed
                   ? ' dark:bg-midnight-500'
                   : ' hover:dark:bg-midnight-800')
@@ -288,7 +288,7 @@ export default function SideMenu({
                 />
               )}
               <button
-                className="px-1"
+                className="pl-2 pr-1"
                 type="button"
                 onClick={(e) => onThreadMenuClicked(e, thread)}
               >
