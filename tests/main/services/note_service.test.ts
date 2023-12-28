@@ -1123,6 +1123,386 @@ describe('findInThread', () => {
       },
     ])
   })
+
+  testPrisma('search %', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: 'あ%あ',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_b',
+          content: 'あ',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInThread(
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        '%',
+        null,
+        30,
+        false
+      )
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_a',
+        content: 'あ%あ',
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      },
+    ])
+  })
+
+  testPrisma('search _', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '_',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_b',
+          content: 'a',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInThread(
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        '_',
+        null,
+        30,
+        false
+      )
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_a',
+        content: '_',
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      },
+    ])
+  })
+
+  testPrisma('search \\%', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '\\%',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_b',
+          content: '\\',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInThread(
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        '\\%',
+        null,
+        30,
+        false
+      )
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_a',
+        content: '\\%',
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      },
+    ])
+  })
+
+  testPrisma('search #', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '#',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_b',
+          content: '%',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInThread(
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        '#',
+        null,
+        30,
+        false
+      )
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_a',
+        content: '#',
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      },
+    ])
+  })
+
+  testPrisma('injection', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '";',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_b',
+          content: "'';",
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInThread(
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+        "'';",
+        null,
+        30,
+        false
+      )
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_b',
+        content: "'';",
+        threadId: 'a',
+        parentId: null,
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      },
+    ])
+  })
 })
 
 describe('findInTree', () => {
@@ -1873,6 +2253,358 @@ describe('findInTree', () => {
       },
     ])
   })
+
+  testPrisma('search %', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_a_a',
+          content: '%',
+          threadId: 'a',
+          parentId: 'a_a',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_a_b',
+          content: 'あ',
+          threadId: 'a',
+          parentId: 'a_a',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInTree(
+        {
+          id: 'a_a',
+          content: '',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        '%',
+        null,
+        30,
+        false
+      )
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_a_a',
+        content: '%',
+        threadId: 'a',
+        parentId: 'a_a',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      },
+    ])
+  })
+
+  testPrisma('search _', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_a_a',
+          content: '_',
+          threadId: 'a',
+          parentId: 'a_a',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_a_b',
+          content: 'a',
+          threadId: 'a',
+          parentId: 'a_a',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInTree(
+        {
+          id: 'a_a',
+          content: '',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        '_',
+        null,
+        30,
+        false
+      )
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_a_a',
+        content: '_',
+        threadId: 'a',
+        parentId: 'a_a',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      },
+    ])
+  })
+
+  testPrisma('search \\%', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_a_a',
+          content: '\\%',
+          threadId: 'a',
+          parentId: 'a_a',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_a_b',
+          content: '\\',
+          threadId: 'a',
+          parentId: 'a_a',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInTree(
+        {
+          id: 'a_a',
+          content: '',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        '\\%',
+        null,
+        30,
+        false
+      )
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_a_a',
+        content: '\\%',
+        threadId: 'a',
+        parentId: 'a_a',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      },
+    ])
+  })
+
+  testPrisma('search #', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_a_a',
+          content: '#',
+          threadId: 'a',
+          parentId: 'a_a',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_a_b',
+          content: '%',
+          threadId: 'a',
+          parentId: 'a_a',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInTree(
+        {
+          id: 'a_a',
+          content: '',
+          threadId: 'a',
+          parentId: null,
+          trash: false,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        '#',
+        null,
+        30,
+        false
+      )
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_a_a',
+        content: '#',
+        threadId: 'a',
+        parentId: 'a_a',
+        trash: false,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      },
+    ])
+  })
 })
 
 describe('findInTrash', () => {
@@ -2115,6 +2847,250 @@ describe('findInTrash', () => {
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
       },
     ])
+  })
+
+  testPrisma('search %', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '%',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_b',
+          content: 'あ',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(noteService.findInTrash('%', null, 30)).resolves.toStrictEqual(
+      [
+        {
+          id: 'a_a',
+          content: '%',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ]
+    )
+  })
+
+  testPrisma('search _', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '_',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_b',
+          content: 'a',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(noteService.findInTrash('_', null, 30)).resolves.toStrictEqual(
+      [
+        {
+          id: 'a_a',
+          content: '_',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ]
+    )
+  })
+
+  testPrisma('search \\%', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '\\%',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_b',
+          content: '\\',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInTrash('\\%', null, 30)
+    ).resolves.toStrictEqual([
+      {
+        id: 'a_a',
+        content: '\\%',
+        threadId: 'a',
+        parentId: null,
+        trash: true,
+        deleted: false,
+        createdAt: new Date('3000-01-01T00:00:00Z'),
+        updatedAt: new Date('3000-01-01T00:00:00Z'),
+        modifiedAt: new Date('3000-01-01T00:00:00Z'),
+      },
+    ])
+  })
+
+  testPrisma('search #', async (prisma) => {
+    await Promise.all(
+      [
+        {
+          id: 'a',
+          name: '',
+          displayMode: 'monologue',
+          trash: false,
+          deleted: false,
+          createdAt: new Date('2023-11-22T10:54:49Z'),
+          updatedAt: new Date('2023-11-22T10:54:49Z'),
+          modifiedAt: new Date('2023-11-22T10:54:49Z'),
+        },
+      ].map((x) => prisma.thread.create({ data: x }))
+    )
+    await Promise.all(
+      [
+        {
+          id: 'a_a',
+          content: '#',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+        {
+          id: 'a_b',
+          content: '%',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ].map((x) => prisma.note.create({ data: x }))
+    )
+
+    const noteService = new NoteService(prisma)
+
+    await expect(noteService.findInTrash('#', null, 30)).resolves.toStrictEqual(
+      [
+        {
+          id: 'a_a',
+          content: '#',
+          threadId: 'a',
+          parentId: null,
+          trash: true,
+          deleted: false,
+          createdAt: new Date('3000-01-01T00:00:00Z'),
+          updatedAt: new Date('3000-01-01T00:00:00Z'),
+          modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        },
+      ]
+    )
   })
 })
 

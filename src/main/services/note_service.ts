@@ -172,6 +172,27 @@ export class NoteService implements INoteService {
     threadId?: string,
     parentId?: string | null
   ): Promise<Note[]> {
+    let query = `
+      SELECT
+        id,
+        content,
+        thread_id AS threadId,
+        parent_id AS parentId,
+        trash,
+        deleted,
+        created_at AS createdAt,
+        updated_at AS updatedAt,
+        modified_at AS modifiedAt
+      FROM
+        note
+      WHERE
+        trash = $1 AND
+        deleted = 0 AND
+        content LIKE '%' || $2 || '%' ESCAPE '#'`
+
+    const searchTextEscaped = searchText.replace(/[#%_]/g, '#$&')
+    const params = [trash, searchTextEscaped] as any[]
+
     // 昇順
     if (!desc) {
       // 前回取得したページの最後のメモの更新日時
@@ -187,42 +208,9 @@ export class NoteService implements INoteService {
             ).createdAt
           : new Date(0)
 
-      return await this.prisma.note.findMany({
-        where: {
-          trash: trash,
-          deleted: false,
-          content: {
-            contains: searchText,
-          },
-          OR: [
-            {
-              createdAt: {
-                gt: lastCreatedAt,
-              },
-            },
-            {
-              createdAt: lastCreatedAt,
-              id: {
-                gt: lastId ?? '',
-              },
-            },
-          ],
-          threadId: threadId,
-          parentId: parentId,
-        },
-        orderBy: [
-          {
-            createdAt: 'asc',
-          },
-          {
-            id: 'asc',
-          },
-        ],
-        take: count,
-      })
-    }
-    // 降順
-    else {
+      query += ' AND (created_at > $3 OR (created_at = $3 AND id > $4))'
+      params.push(lastCreatedAt, lastId ?? '')
+    } else {
       // 前回取得したページの最後のメモの更新日時
       const lastCreatedAt =
         lastId != null
@@ -236,41 +224,35 @@ export class NoteService implements INoteService {
             ).createdAt
           : new Date('9999-12-31T23:59:59Z')
 
-      return await this.prisma.note.findMany({
-        where: {
-          trash: trash,
-          deleted: false,
-          content: {
-            contains: searchText,
-          },
-          OR: [
-            {
-              createdAt: {
-                lt: lastCreatedAt,
-              },
-            },
-            {
-              createdAt: lastCreatedAt,
-              id: {
-                gt: lastId ?? '',
-              },
-            },
-          ],
-          threadId: threadId,
-          parentId: parentId,
-        },
-        orderBy: [
-          {
-            createdAt: 'desc',
-          },
-          {
-            id: 'asc',
-          },
-        ],
+      query += ' AND (created_at < $3 OR (created_at = $3 AND id > $4))'
 
-        take: count,
-      })
+      params.push(lastCreatedAt, lastId ?? '')
     }
+
+    if (threadId != null) {
+      query += ' AND thread_id = $5'
+      params.push(threadId)
+    } else if (threadId === null) {
+      query += ' AND thread_id IS NULL'
+    }
+
+    if (parentId != null) {
+      query += ' AND parent_id = $6'
+      params.push(parentId)
+    } else if (parentId === null) {
+      query += ' AND parent_id IS NULL'
+    }
+
+    if (!desc) {
+      query += ' ORDER BY created_at ASC, id ASC'
+    } else {
+      query += ' ORDER BY created_at DESC, id ASC'
+    }
+
+    query += ' LIMIT $7'
+    params.push(count)
+
+    return await this.prisma.$queryRawUnsafe(query, ...params)
   }
 
   public async findInThread(
