@@ -17,32 +17,25 @@ export class SyncService {
    * @param threadId スレッドの ID (UUID)
    */
   public async getAllNotesInThread(threadId: string): Promise<Note[]> {
-    const notes = await this.prisma.$queryRaw<
-      // 自動生成された型があるならそっちに置き換えたいが、ぱっと調べた感じ見つからなかった
-      {
-        id: string
-        content: string
-        thread_id: string
-        parent_id: string | null
-        trash: boolean
-        deleted: boolean
-        created_at: Date
-        updated_at: Date
-        modified_at: Date
-      }[]
-    >`SELECT * FROM note WHERE deleted = 0 AND thread_id = ${threadId} ORDER BY (parent_id IS NULL) DESC, created_at ASC`
-
-    return notes.map((x) => ({
-      id: x.id,
-      content: x.content,
-      threadId: x.thread_id,
-      parentId: x.parent_id,
-      trash: x.trash,
-      deleted: x.deleted,
-      createdAt: x.created_at,
-      updatedAt: x.updated_at,
-      modifiedAt: x.modified_at,
-    }))
+    return await this.prisma.$queryRaw`
+      SELECT
+        id,
+        content,
+        thread_id AS threadId,
+        parent_id AS parentId,
+        trash,
+        deleted,
+        created_at AS createdAt,
+        updated_at AS updatedAt,
+        modified_at AS modifiedAt
+      FROM
+        note
+      WHERE
+        deleted = 0 AND
+        thread_id = ${threadId}
+      ORDER BY
+        (parent_id IS NULL) DESC,
+        created_at ASC`
   }
 
   /**
