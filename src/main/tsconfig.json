@@ -16,5 +16,5 @@
     "composite": true,
     "rootDir": "../"
   },
-  "include": ["src", "../preload/channel.ts"]
+  "include": ["./", "../preload/channel.ts", "../common"]
 }

@@ -4,15 +4,31 @@ import ArrowUndoIcon from './icons/ArrowUndoIcon'
 import DeleteForeverIcon from './icons/DeleteForeverIcon'
 import { HoverMenu, HoverMenuItem } from './HoverMenu'
 import { toHtml } from '../markdown/markdown'
+import { NoteWithThreadName } from '../../../common/note_with_thread_name'
+
+// LocalTime の YYYY-MM-DD HH:mm の形式にフォーマットする
+function formatDate(date: Date) {
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+  const year = date.getFullYear()
+  const month = pad(date.getMonth() + 1)
+  const day = pad(date.getDate())
+  const hour = pad(date.getHours())
+  const minute = pad(date.getMinutes())
+
+  return `${year}-${month}-${day} ${hour}:${minute}`
+}
 
 function useTrashNoteList(
-  loadNext: (lastId: string | null, count: number) => Promise<Note[]>,
+  loadNext: (
+    lastId: string | null,
+    count: number
+  ) => Promise<NoteWithThreadName[]>,
   restoreNote: (note: Note) => Promise<void>,
   deleteNote: (note: Note) => Promise<void>
 ) {
   const [hasErrorOccured, setHasErrorOccured] = useState(false)
   const [hasLoadedAll, setHasLoadedAll] = useState(false)
-  const [notes, setNotes] = useState<Note[]>([])
+  const [notes, setNotes] = useState<NoteWithThreadName[]>([])
 
   async function onNoteRestoreClicked(note: Note) {
     try {
@@ -106,9 +122,9 @@ export default memo(function Trash() {
             >
               <div className="flex items-center justify-between gap-2 p-2">
                 <p className="text-midnight-50 bg-midnight-300 dark:bg-midnight-500 rounded-md px-4 py-1 text-xs">
-                  スレッド名をここに
+                  {note.threadName}
                 </p>
-                <p className="text-xs">{note.createdAt.toUTCString()}</p>
+                <p className="text-xs">{formatDate(note.createdAt)}</p>
               </div>
 
               <p

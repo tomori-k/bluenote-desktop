@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client'
-import { Note } from '../../common/note'
-import { Thread } from '../../common/thread'
+import { Note, PrismaClient, Thread } from '@prisma/client'
 import { Diff } from '../sync/diff'
 
 export class SyncService {

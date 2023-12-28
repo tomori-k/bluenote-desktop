@@ -1,5 +1,4 @@
-import { PrismaClient } from '@prisma/client'
-import { Thread } from '../../common/thread'
+import { PrismaClient, Thread } from '@prisma/client'
 
 export interface IThreadService {
   /**

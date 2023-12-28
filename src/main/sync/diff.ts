@@ -1,8 +1,7 @@
 import { ISyncCompanion } from './companion'
 import { IThreadService } from '../services/thread_service'
 import { INoteService } from '../services/note_service'
-import { Thread } from '../../common/thread'
-import { Note } from '../../common/note'
+import { Note, Thread } from '@prisma/client'
 
 export class Diff {
   public threadCreate: Thread[]

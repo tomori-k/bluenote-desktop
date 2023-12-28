@@ -1,11 +1,10 @@
-import { Note } from '../../../src/common/note'
-import { Thread } from '../../../src/common/thread'
 import { ISyncCompanion } from '../../../src/main/sync/companion'
 import {
   INoteService,
   NoteWithThreadName,
 } from '../../../src/main/services/note_service'
 import { IThreadService } from '../../../src/main/services/thread_service'
+import { Thread, Note } from '@prisma/client'
 
 /**
  * 適宜 jest.spyOn で書き換える
