@@ -14,11 +14,13 @@ import Settings from './components/Settings'
 import SyncIcon from './components/icons/SyncIcon'
 import AppLayout from './components/AppLayout'
 
-function useDebounce<T>(value: T) {
+function useSearchDebounce(value: string) {
   const [debouncedValue, setDebouncedValue] = useState(value)
 
   useEffect(() => {
-    const timerId = setTimeout(() => setDebouncedValue(value), 200)
+    const timerId = setTimeout(() => {
+      if (value.length > 0) setDebouncedValue(value)
+    }, 200)
     return () => clearTimeout(timerId)
   }, [value])
 
@@ -50,7 +52,7 @@ function App() {
     note: Note | null
   }>({ thread: null, note: null })
   const [searchText, setSearchText] = useState('')
-  const searchTextDebounced = useDebounce(searchText)
+  const searchTextDebounced = useSearchDebounce(searchText)
   const [hasErrorOccured, setHasErrorOccured] = useState(false) // todo: これをどこかで表示する
 
   const onNoteInThreadClicked = useCallback((note: Note) => {
@@ -105,7 +107,7 @@ function App() {
           className="electron-no-drag bg-midnight-50 dark:bg-midnight-700 focus:dark:border-midnight-400 h-8 w-80 rounded-lg pl-3 focus:border focus:outline-none"
           type="text"
           placeholder="検索..."
-          // value={searchText}
+          value={searchText}
           onChange={onSearchTextChanged}
         />
 
