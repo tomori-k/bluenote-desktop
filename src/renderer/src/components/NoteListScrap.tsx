@@ -5,6 +5,7 @@ import EditIcon from './icons/EditIcon'
 import DeleteIcon from './icons/DeleteIcon'
 import { HoverMenu, HoverMenuItem } from './HoverMenu'
 import { toHtml } from '../markdown/markdown'
+import { ChildrenCountView, NoteType } from './NoteList'
 
 // LocalTime の YYYY-MM-DD HH:mm の形式にフォーマットする
 function formatDate(date: Date) {
@@ -19,7 +20,7 @@ function formatDate(date: Date) {
 }
 
 type NoteListScrapProps = {
-  notes: Note[]
+  notes: NoteType[]
   hasLoadedAll: boolean
   onReachedLast: () => void
   onNoteClicked: (note: Note) => void
@@ -67,9 +68,14 @@ export default function NoteListScrap({
               className="hover:bg-midnight-100 hover:dark:bg-midnight-700 group relative"
               key={x.id}
             >
-              <p className="p-2 text-right text-xs">
-                {formatDate(x.createdAt)}
-              </p>
+              <div className="flex flex-row-reverse justify-between p-2 text-xs">
+                <p>{formatDate(x.createdAt)}</p>
+                <div className="ml-1 w-12">
+                  {x.childrenCount != null && x.childrenCount > 0 && (
+                    <ChildrenCountView>{x.childrenCount}</ChildrenCountView>
+                  )}
+                </div>
+              </div>
               <p
                 className="markdown-body break-all pb-4 pl-4 text-sm"
                 dangerouslySetInnerHTML={{ __html: toHtml(x.content) }}

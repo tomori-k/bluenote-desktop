@@ -3,6 +3,7 @@ import Editor, { EditorMode } from './Editor'
 import NoteListScrap from './NoteListScrap'
 import NoteListMonologue from './NoteListMonologue'
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
+import { NoteType } from './NoteList'
 
 type ThreadViewProps = {
   thread: Thread | null
@@ -13,7 +14,7 @@ type ThreadViewProps = {
  * 作成日時が近いメモをグループ化
  * @param notes 作成日時で降順ソートされたメモのリスト
  */
-export function createNoteGroup(notes: Note[]): Note[][] {
+export function createNoteGroup(notes: NoteType[]): NoteType[][] {
   return notes.reduce((accumulator, currrent) => {
     if (accumulator.length === 0) return [[currrent]]
 
@@ -28,18 +29,18 @@ export function createNoteGroup(notes: Note[]): Note[][] {
     else accumulator.push([currrent])
 
     return accumulator
-  }, new Array<Note[]>())
+  }, new Array<NoteType[]>())
 }
 
 export function useNoteList(
-  loadNext: (lastId: string | null, count: number) => Promise<Note[]>,
+  loadNext: (lastId: string | null, count: number) => Promise<NoteType[]>,
   createNote: (content: string) => Promise<Note>,
   editNote: (content: string, parentNote: Note) => Promise<Note>,
   removeNote: (note: Note) => Promise<void>
 ) {
   const [hasErrorOccured, setHasErrorOccured] = useState(false)
   const [hasLoadedAll, setHasLoadedAll] = useState(false)
-  const [notes, setNotes] = useState<Note[]>([])
+  const [notes, setNotes] = useState<NoteType[]>([])
   const [noteInput, setNoteInput] = useState('')
   const [editTarget, setEditTarget] = useState<Note | null>(null)
   const editorMode = editTarget != null ? EditorMode.Edit : EditorMode.Create
@@ -112,7 +113,7 @@ export function useNoteList(
 }
 
 type NoteListProps = {
-  notes: Note[]
+  notes: NoteType[]
   displayMode: string | undefined
   hasLoadedAll: boolean
   onReachedLast: () => void
@@ -132,7 +133,7 @@ export const NoteList = memo(
     onNoteRemoveClicked,
   }: NoteListProps) => {
     const [notesTransformed, mode] = useMemo(
-      function (): [Note[], 'scrap'] | [Note[][], 'monologue'] {
+      function (): [NoteType[], 'scrap'] | [NoteType[][], 'monologue'] {
         const mode =
           displayMode === 'monologue' || displayMode === 'scrap'
             ? displayMode

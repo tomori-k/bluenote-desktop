@@ -5,6 +5,7 @@ import DeleteIcon from './icons/DeleteIcon'
 import EditIcon from './icons/EditIcon'
 import TextBulletListTreeIcon from './icons/TextBulletListTreeIcon'
 import { toHtml } from '../markdown/markdown'
+import { ChildrenCountView, NoteType } from './NoteList'
 
 function formatTime(date: Date) {
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
@@ -15,7 +16,7 @@ function formatTime(date: Date) {
 }
 
 type NoteListMonologueProps = {
-  noteGroups: Note[][]
+  noteGroups: NoteType[][]
   hasLoadedAll: boolean
   onReachedLast: () => void
   onNoteClicked: (note: Note) => void
@@ -65,16 +66,24 @@ export default function NoteListMonologue({
                   className="hover:bg-midnight-100 hover:dark:bg-midnight-700 group relative grid grid-cols-[auto_1fr] py-1"
                   key={note.id}
                 >
-                  <p
-                    className={
-                      (i !== noteGroup.length - 1
-                        ? 'invisible opacity-50 group-hover:visible'
-                        : '') +
-                      ' dark:text-midnight-200 w-14 pr-4 pt-[1px] text-right text-xs'
-                    }
-                  >
-                    {formatTime(note.createdAt)}
-                  </p>
+                  <div className="w-16 pl-2 pr-4 pt-[1px] text-xs">
+                    <p
+                      className={
+                        (i !== noteGroup.length - 1 &&
+                        (noteGroup[i].childrenCount == null ||
+                          noteGroup[i].childrenCount === 0)
+                          ? 'invisible opacity-50 group-hover:visible'
+                          : '') + ' dark:text-midnight-200 pb-1 pr-2 text-right'
+                      }
+                    >
+                      {formatTime(note.createdAt)}
+                    </p>
+                    {note.childrenCount != null && note.childrenCount > 0 && (
+                      <ChildrenCountView>
+                        {note.childrenCount}
+                      </ChildrenCountView>
+                    )}
+                  </div>
                   <p
                     className="markdown-body break-all text-sm"
                     dangerouslySetInnerHTML={{ __html: toHtml(note.content) }}

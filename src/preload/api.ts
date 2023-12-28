@@ -1,7 +1,10 @@
 import { ipcRenderer } from 'electron'
 import { IpcInvokeChannel } from './channel'
 import { Device, Note, Thread } from '@prisma/client'
-import { NoteWithThreadName } from '../common/note_with_thread_name'
+import {
+  NoteWithChildrenCount,
+  NoteWithThreadName,
+} from '../common/note_with_thread_name'
 
 type ThreadCreate = Pick<Thread, 'name'>
 
@@ -52,7 +55,7 @@ export const api = {
     lastId: string | null,
     count: number,
     desc: boolean
-  ): Promise<Note[]> {
+  ): Promise<NoteWithChildrenCount[]> {
     return await ipcRenderer.invoke(
       IpcInvokeChannel.FindNotesInThread,
       thread,
