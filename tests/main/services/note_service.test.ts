@@ -302,6 +302,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
     ])
     await expect(
@@ -332,6 +333,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
     ])
     await expect(
@@ -362,6 +364,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 1,
       },
     ])
     await expect(
@@ -392,6 +395,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
 
@@ -425,6 +429,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
       {
         id: 'a_d',
@@ -436,6 +441,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
     ])
     await expect(
@@ -466,6 +472,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 1,
       },
       {
         id: 'a_b',
@@ -477,6 +484,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
 
@@ -510,6 +518,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
       {
         id: 'a_d',
@@ -521,6 +530,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
       {
         id: 'a_a',
@@ -532,6 +542,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 1,
       },
     ])
     await expect(
@@ -562,6 +573,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
 
@@ -595,6 +607,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
       {
         id: 'a_d',
@@ -606,6 +619,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
       {
         id: 'a_a',
@@ -617,6 +631,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 1,
       },
       {
         id: 'a_b',
@@ -628,6 +643,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
   })
@@ -793,6 +809,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 1,
       },
     ])
 
@@ -824,6 +841,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
     await expect(
@@ -854,6 +872,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
     ])
     await expect(
@@ -884,6 +903,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
     ])
 
@@ -917,6 +937,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 1,
       },
       {
         id: 'a_b',
@@ -928,6 +949,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
     await expect(
@@ -958,6 +980,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
       {
         id: 'a_d',
@@ -969,6 +992,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
     ])
 
@@ -1002,6 +1026,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 1,
       },
       {
         id: 'a_b',
@@ -1013,6 +1038,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
       {
         id: 'a_c',
@@ -1024,6 +1050,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
     ])
     await expect(
@@ -1054,6 +1081,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
     ])
 
@@ -1087,6 +1115,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 1,
       },
       {
         id: 'a_b',
@@ -1098,6 +1127,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
       {
         id: 'a_c',
@@ -1109,6 +1139,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
       {
         id: 'a_d',
@@ -1120,6 +1151,7 @@ describe('findInThread', () => {
         createdAt: new Date(0),
         updatedAt: new Date(0),
         modifiedAt: new Date(0),
+        childrenCount: 0,
       },
     ])
   })
@@ -1196,6 +1228,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
   })
@@ -1272,6 +1305,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
   })
@@ -1348,6 +1382,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
   })
@@ -1424,6 +1459,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
   })
@@ -1500,6 +1536,7 @@ describe('findInThread', () => {
         createdAt: new Date('3000-01-01T00:00:00Z'),
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
+        childrenCount: 0,
       },
     ])
   })

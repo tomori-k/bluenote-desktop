@@ -1,5 +1,6 @@
 import { Note, PrismaClient, Thread } from '@prisma/client'
 import { ThreadService } from './thread_service'
+import { NoteWithChildrenCount } from '../../common/note_with_thread_name'
 
 export type NoteWithThreadName = Note & { threadName: string }
 
@@ -30,7 +31,7 @@ export interface INoteService {
     lastId: string | null,
     count: number,
     desc: boolean
-  ): Promise<Note[]>
+  ): Promise<NoteWithChildrenCount[]>
 
   /**
    * ツリーにあるメモを作成日時でソートして取得する
@@ -182,7 +183,8 @@ export class NoteService implements INoteService {
     count: number,
     desc: boolean,
     threadId?: string,
-    parentId?: string | null
+    parentId?: string | null,
+    includeChildrenCount?: boolean
   ) {
     // threadId が指定されていないときは、結果にスレッド名を含める
     let query = `
@@ -196,9 +198,20 @@ export class NoteService implements INoteService {
         note.created_at AS createdAt,
         note.updated_at AS updatedAt,
         note.modified_at AS modifiedAt
+        ${
+          includeChildrenCount
+            ? // この ROUND() がないと、BigInt をシリアライズできないみたいな謎エラーがでる
+              ',ROUND(COUNT(children_note.id), 2) AS childrenCount'
+            : ''
+        }
         ${typeof threadId === 'undefined' ? ',thread.name AS threadName' : ''}
       FROM
         note
+      ${
+        includeChildrenCount
+          ? 'LEFT OUTER JOIN note AS children_note ON note.id = children_note.parent_id'
+          : ''
+      }
       ${
         typeof threadId === 'undefined'
           ? 'INNER JOIN thread ON note.thread_id = thread.id'
@@ -262,6 +275,10 @@ export class NoteService implements INoteService {
       query += ' AND note.parent_id IS NULL'
     }
 
+    if (includeChildrenCount) {
+      query += ' GROUP BY note.id'
+    }
+
     if (!desc) {
       query += ' ORDER BY note.created_at ASC, note.id ASC'
     } else {
@@ -280,7 +297,7 @@ export class NoteService implements INoteService {
     lastId: string | null,
     count: number,
     desc: boolean
-  ): Promise<Note[]> {
+  ): Promise<NoteWithChildrenCount[]> {
     await this.ensureThreadExists(thread)
 
     return await this.findNotes_Impl(
@@ -290,7 +307,8 @@ export class NoteService implements INoteService {
       count,
       desc,
       thread.id,
-      null
+      null,
+      true
     )
   }
 

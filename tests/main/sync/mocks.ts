@@ -5,6 +5,7 @@ import {
 } from '../../../src/main/services/note_service'
 import { IThreadService } from '../../../src/main/services/thread_service'
 import { Thread, Note } from '@prisma/client'
+import { NoteWithChildrenCount } from '../../../src/common/note_with_thread_name'
 
 /**
  * 適宜 jest.spyOn で書き換える
@@ -79,7 +80,7 @@ export class MockNoteService implements INoteService {
     lastId: string,
     count: number,
     desc: boolean
-  ): Promise<Note[]> {
+  ): Promise<NoteWithChildrenCount[]> {
     throw new Error('Method not implemented.')
   }
 
