@@ -1,14 +1,14 @@
 import { Note, Thread } from '@prisma/client'
 import Editor from './Editor'
 import { useNoteList, NoteList } from './ThreadView'
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, memo } from 'react'
 
 type TreeViewrProps = {
   thread: Thread
   parentNote: Note
 }
 
-export default function Tree({ thread, parentNote }: TreeViewrProps) {
+export default memo(function Tree({ thread, parentNote }: TreeViewrProps) {
   const {
     notes,
     hasLoadedAll,
@@ -81,4 +81,4 @@ export default function Tree({ thread, parentNote }: TreeViewrProps) {
       />
     </div>
   )
-}
+})

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { Note } from '@prisma/client'
 import ArrowUndoIcon from './icons/ArrowUndoIcon'
 import DeleteForeverIcon from './icons/DeleteForeverIcon'
@@ -56,7 +56,7 @@ function useTrashNoteList(
   }
 }
 
-export default function Trash() {
+export default memo(function Trash() {
   const {
     notes,
     hasLoadedAll,
@@ -130,4 +130,4 @@ export default function Trash() {
       </ul>
     </div>
   )
-}
+})

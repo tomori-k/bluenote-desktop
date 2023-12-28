@@ -1,5 +1,5 @@
 import { Thread } from '@prisma/client'
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import ThreadIcon from './icons/ThreadIcon'
 import AddIcon from './icons/AddIcon'
 import MoreVerticalIcon from './icons/MoreVerticalIcon'
@@ -108,7 +108,7 @@ type SideMenuProps = {
   onSettingsClicked: () => void
 }
 
-export default function SideMenu({
+export default memo(function SideMenu({
   selectedThraed,
   onThreadSelected,
   onTrashClicked,
@@ -347,4 +347,4 @@ export default function SideMenu({
       </ul>
     </div>
   )
-}
+})

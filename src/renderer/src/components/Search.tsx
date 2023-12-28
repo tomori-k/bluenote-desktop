@@ -1,5 +1,5 @@
 import { Note, Thread } from '@prisma/client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { toHtml } from '../markdown/markdown'
 
 type SearchProps = {
@@ -39,7 +39,7 @@ function useSearchNoteList(
 // TODO: 検索部分の仕様をちゃんと決める
 // 特に検索範囲: 全体(ごみ箱含める)、ごみ箱以外、開いてるスレッド、その他 (?)
 // 一旦今開いているスレッドのメモを検索することにする
-export default function Search({ thread, searchText }: SearchProps) {
+export default memo(function Search({ thread, searchText }: SearchProps) {
   const { notes, hasLoadedAll, hasErrorOccured, onReachedLast } =
     useSearchNoteList((lastId, count) => {
       return window.api.findNotesInThread(
@@ -97,4 +97,4 @@ export default function Search({ thread, searchText }: SearchProps) {
       </ul>
     </div>
   )
-}
+})

@@ -170,7 +170,10 @@ export const NoteList = memo(
   }
 )
 
-export default function ThreadView({ thread, onNoteClicked }: ThreadViewProps) {
+export default memo(function ThreadView({
+  thread,
+  onNoteClicked,
+}: ThreadViewProps) {
   const {
     notes,
     hasLoadedAll,
@@ -239,4 +242,4 @@ export default function ThreadView({ thread, onNoteClicked }: ThreadViewProps) {
       />
     </div>
   )
-}
+})

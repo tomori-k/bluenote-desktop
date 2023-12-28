@@ -6,7 +6,7 @@ import Trash from './components/Trash'
 import Closable from './components/Closable'
 import HamburgerIcon from './components/icons/HamburgerIcon'
 import TextBulletListTreeIcon from './components/icons/TextBulletListTreeIcon'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Note, Thread } from '@prisma/client'
 import DeleteIcon from './components/icons/DeleteIcon'
 import SearchIcon from './components/icons/SearchIcon'
@@ -53,9 +53,21 @@ function App() {
   const searchTextDebounced = useDebounce(searchText)
   const [hasErrorOccured, setHasErrorOccured] = useState(false) // todo: これをどこかで表示する
 
-  function onNoteInThreadClicked(note: Note) {
-    setSelection({ ...selection, note })
-  }
+  const onNoteInThreadClicked = useCallback((note: Note) => {
+    setSelection((selection) => ({ ...selection, note }))
+  }, [])
+
+  const onThreadClicked = useCallback((thread: Thread) => {
+    setSelection({ thread, note: null })
+  }, [])
+
+  const onTrashClicked = useCallback(() => {
+    setIsTrashViewOpen((isTrashViewOpen) => !isTrashViewOpen)
+  }, [])
+
+  const onSettingsClicked = useCallback(() => {
+    setIsSettingsModalOpen(true)
+  }, [])
 
   async function onSearchTextChanged(e: React.ChangeEvent<HTMLInputElement>) {
     setSearchText(e.target.value)
@@ -110,9 +122,9 @@ function App() {
           isSideMenuOpen ? (
             <SideMenu
               selectedThraed={selection.thread}
-              onThreadSelected={(x) => setSelection({ thread: x, note: null })}
-              onTrashClicked={() => setIsTrashViewOpen(!isTrashViewOpen)}
-              onSettingsClicked={() => setIsSettingsModalOpen(true)}
+              onThreadSelected={onThreadClicked}
+              onTrashClicked={onTrashClicked}
+              onSettingsClicked={onSettingsClicked}
             />
           ) : null
         }
