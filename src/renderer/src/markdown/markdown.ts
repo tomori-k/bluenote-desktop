@@ -15,9 +15,7 @@ const marked = new Marked(
 marked.use({
   breaks: true,
   renderer: {
-    heading(text: string, level: number) {
-      return '#'.repeat(level) + ' ' + text
-    },
+    // escape
     html(html: string) {
       return html
         .replace(/&/g, '&amp;')
@@ -26,6 +24,22 @@ marked.use({
         .replace(/\"/g, '&quot;')
         .replace(/\'/g, '&#x27;')
         .replace(/`/g, '&#x60')
+    },
+    // disable
+    checkbox(checked: boolean) {
+      return checked ? '[x]' : '[ ]'
+    },
+  },
+  // disable
+  tokenizer: {
+    table(_: string) {
+      return undefined
+    },
+    heading(_: string) {
+      return undefined
+    },
+    hr(_: string) {
+      return false
     },
   },
 })
