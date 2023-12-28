@@ -319,7 +319,7 @@ export class NoteService implements INoteService {
     lastId: string | null,
     count: number
   ): Promise<NoteWithThreadName[]> {
-    return await this.findNotes_Impl(true, searchText, lastId, count, false)
+    return await this.findNotes_Impl(true, searchText, lastId, count, true)
   }
 
   public async findNotes(

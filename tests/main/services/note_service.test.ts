@@ -2714,22 +2714,6 @@ describe('findInTrash', () => {
       noteService.findInTrash('いう', null, 1)
     ).resolves.toStrictEqual([
       {
-        id: 'b_a',
-        content: 'いう',
-        threadId: 'b',
-        parentId: null,
-        trash: true,
-        deleted: false,
-        createdAt: new Date(0),
-        updatedAt: new Date(0),
-        modifiedAt: new Date(0),
-        threadName: 'スレッドb',
-      },
-    ])
-    await expect(
-      noteService.findInTrash('いう', 'b_a', 1)
-    ).resolves.toStrictEqual([
-      {
         id: 'a_a',
         content: 'あいうえお',
         threadId: 'a',
@@ -2758,15 +2742,8 @@ describe('findInTrash', () => {
         threadName: 'スレッドa',
       },
     ])
-  })
-
-  testPrisma('count=2', async (prisma) => {
-    await initDatabase(prisma)
-
-    const noteService = new NoteService(prisma)
-
     await expect(
-      noteService.findInTrash('いう', null, 2)
+      noteService.findInTrash('いう', 'a_a_a', 1)
     ).resolves.toStrictEqual([
       {
         id: 'b_a',
@@ -2780,6 +2757,17 @@ describe('findInTrash', () => {
         modifiedAt: new Date(0),
         threadName: 'スレッドb',
       },
+    ])
+  })
+
+  testPrisma('count=2', async (prisma) => {
+    await initDatabase(prisma)
+
+    const noteService = new NoteService(prisma)
+
+    await expect(
+      noteService.findInTrash('いう', null, 2)
+    ).resolves.toStrictEqual([
       {
         id: 'a_a',
         content: 'あいうえお',
@@ -2792,10 +2780,6 @@ describe('findInTrash', () => {
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
         threadName: 'スレッドa',
       },
-    ])
-    await expect(
-      noteService.findInTrash('いう', 'a_a', 2)
-    ).resolves.toStrictEqual([
       {
         id: 'a_a_a',
         content: 'あいうえお',
@@ -2807,6 +2791,22 @@ describe('findInTrash', () => {
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
         threadName: 'スレッドa',
+      },
+    ])
+    await expect(
+      noteService.findInTrash('いう', 'a_a_a', 2)
+    ).resolves.toStrictEqual([
+      {
+        id: 'b_a',
+        content: 'いう',
+        threadId: 'b',
+        parentId: null,
+        trash: true,
+        deleted: false,
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+        modifiedAt: new Date(0),
+        threadName: 'スレッドb',
       },
     ])
   })
@@ -2820,18 +2820,6 @@ describe('findInTrash', () => {
       noteService.findInTrash('いう', null, 3)
     ).resolves.toStrictEqual([
       {
-        id: 'b_a',
-        content: 'いう',
-        threadId: 'b',
-        parentId: null,
-        trash: true,
-        deleted: false,
-        createdAt: new Date(0),
-        updatedAt: new Date(0),
-        modifiedAt: new Date(0),
-        threadName: 'スレッドb',
-      },
-      {
         id: 'a_a',
         content: 'あいうえお',
         threadId: 'a',
@@ -2854,6 +2842,18 @@ describe('findInTrash', () => {
         updatedAt: new Date('3000-01-01T00:00:00Z'),
         modifiedAt: new Date('3000-01-01T00:00:00Z'),
         threadName: 'スレッドa',
+      },
+      {
+        id: 'b_a',
+        content: 'いう',
+        threadId: 'b',
+        parentId: null,
+        trash: true,
+        deleted: false,
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+        modifiedAt: new Date(0),
+        threadName: 'スレッドb',
       },
     ])
   })
