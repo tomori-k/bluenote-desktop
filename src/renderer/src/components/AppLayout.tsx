@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 
 const WIDTH_RESIZER_PX = 4
-const WIDTH_DEFAULT_TAB_PX = 200
+const WIDTH_DEFAULT_SIDE_MENU_PX = 200
+const WIDTH_DEFAULT_TAB_PX = 300
 
 export default function AppLayout({
   sideMenu,
@@ -17,7 +18,7 @@ export default function AppLayout({
     if (tab != null && tab.key == null) throw new Error('key must be specified')
   }
 
-  const [sideMenuWidth, setSideMenuWidth] = useState(100)
+  const [sideMenuWidth, setSideMenuWidth] = useState(WIDTH_DEFAULT_SIDE_MENU_PX)
   const [tabWidths, setTabWidths] = useState<
     Record<string, number | undefined>
   >({})
