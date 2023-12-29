@@ -64,10 +64,7 @@ export default function NoteListScrap({
       <ul className="divide-midnight-100 dark:divide-midnight-600 divide-y overflow-y-auto">
         {notes.map((x) => (
           <li key={x.id} className="first:pt-5">
-            <div
-              className="hover:bg-midnight-100 hover:dark:bg-midnight-700 group relative"
-              key={x.id}
-            >
+            <div className="hover:bg-midnight-100 hover:dark:bg-midnight-700 group relative">
               <div className="flex flex-row-reverse justify-between p-2 text-xs">
                 <p>{formatDate(x.createdAt)}</p>
                 <div className="ml-1 w-12">
@@ -77,7 +74,7 @@ export default function NoteListScrap({
                 </div>
               </div>
               <p
-                className="markdown-body break-all pb-4 pl-4 text-sm"
+                className="markdown-body break-all px-4 pb-4 text-sm"
                 dangerouslySetInnerHTML={{ __html: toHtml(x.content) }}
               />
               <HoverMenu className="collapse absolute right-1 top-[-1.125rem] group-hover:visible">
