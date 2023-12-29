@@ -209,7 +209,12 @@ export class NoteService implements INoteService {
         note
       ${
         includeChildrenCount
-          ? 'LEFT OUTER JOIN note AS children_note ON note.id = children_note.parent_id'
+          ? `LEFT OUTER JOIN
+              note AS children_note
+            ON
+              note.id = children_note.parent_id AND
+              children_note.trash = 0 AND
+              children_note.deleted = 0`
           : ''
       }
       ${
