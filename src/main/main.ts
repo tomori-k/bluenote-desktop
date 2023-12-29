@@ -7,14 +7,17 @@ import { DeviceService } from './services/device_service'
 import { ThreadService } from './services/thread_service'
 import { NoteService } from './services/note_service'
 import { SyncService } from './services/sync_service'
+import { SettingsService } from './services/settings_service'
 import { SyncCompanion } from './sync/companion'
 import { diff } from './sync/diff'
+import { Settings, validateSettings } from '../common/settings'
 
 const prisma = new PrismaClient()
 const deviceService = new DeviceService(prisma)
 const threadService = new ThreadService(prisma)
 const noteService = new NoteService(prisma)
 const syncService = new SyncService(prisma)
+const settingsService = new SettingsService(app.getPath('userData'))
 
 const createWindow = async () => {
   const window = new BrowserWindow({
@@ -351,6 +354,18 @@ const createWindow = async () => {
 
     [IpcInvokeChannel.Sync]: async () => {
       await sync()
+    },
+
+    [IpcInvokeChannel.GetSettings]: async () => {
+      return await settingsService.getSettings()
+    },
+
+    [IpcInvokeChannel.UpdateSettings]: async (
+      _: Electron.IpcMainInvokeEvent,
+      settings: unknown
+    ) => {
+      const validated = validateSettings(settings)
+      await settingsService.updateSettings(validated)
     },
   }
 

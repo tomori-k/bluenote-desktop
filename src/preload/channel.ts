@@ -44,6 +44,10 @@ const _NewIpcChannel = {
   RemoveNote: 'remove-note',
   RestoreNote: 'restore-note',
   DeleteNote: 'delete-note',
+
+  // settings
+  GetSettings: 'get-settings',
+  UpdateSettings: 'update-settings',
 } as const
 
 export type IpcInvokeChannel =

@@ -10,9 +10,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { Note, Thread } from '@prisma/client'
 import DeleteIcon from './components/icons/DeleteIcon'
 import SearchIcon from './components/icons/SearchIcon'
-import Settings from './components/Settings'
+import SettingsModal from './components/SettingsModal'
 import SyncIcon from './components/icons/SyncIcon'
 import AppLayout from './components/AppLayout'
+import { Settings, getDefaultSettings } from '../../common/settings'
 
 function useSearchDebounce(value: string) {
   const [debouncedValue, setDebouncedValue] = useState(value)
@@ -54,6 +55,7 @@ function App() {
   const [searchText, setSearchText] = useState('')
   const searchTextDebounced = useSearchDebounce(searchText)
   const [hasErrorOccured, setHasErrorOccured] = useState(false) // todo: これをどこかで表示する
+  const [settings, setSettings] = useState<Settings>(getDefaultSettings())
 
   const onNoteInThreadClicked = useCallback((note: Note) => {
     setSelection((selection) => ({ ...selection, note }))
@@ -91,6 +93,28 @@ function App() {
       setIsSyncing(false)
     }
   }
+
+  async function onSettingsUpdate(settings: Settings) {
+    try {
+      await window.settings.updateSettings(settings)
+      setSettings(settings)
+    } catch (e) {
+      setHasErrorOccured(true)
+    }
+  }
+
+  useEffect(() => {
+    async function getSettings() {
+      try {
+        const settings = await window.settings.getSettings()
+        setSettings(settings)
+      } catch (e) {
+        setHasErrorOccured(true)
+      }
+    }
+
+    getSettings()
+  }, [])
 
   return (
     <div className="text-midnight-950 bg-midnight-50 dark:text-midnight-50 grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
@@ -186,7 +210,11 @@ function App() {
         ]}
       />
       {isSettingsModalOpen && (
-        <Settings onClose={() => setIsSettingsModalOpen(false)} />
+        <SettingsModal
+          settings={settings}
+          onClose={() => setIsSettingsModalOpen(false)}
+          onUpdate={onSettingsUpdate}
+        />
       )}
     </div>
   )

@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react'
 import SettingsIcon from './icons/SettingsIcon'
 import CloseIcon from './icons/CloseIcon'
 import { Device } from '@prisma/client'
+import { Settings } from '../../../common/settings'
 
 type SettingsProps = {
+  settings: Settings
   onClose: () => void
+  onUpdate: (settings: Settings) => void
 }
 
 function useBluetoothScanEffect(
@@ -414,7 +417,11 @@ enum SettingsTab {
   AddSyncDevice,
 }
 
-export default function Settings({ onClose }: SettingsProps) {
+export default function SettingsModal({
+  settings,
+  onClose,
+  onUpdate,
+}: SettingsProps) {
   const [tab, setTab] = useState(SettingsTab.Appearance)
 
   return (
