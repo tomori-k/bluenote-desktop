@@ -1,7 +1,7 @@
 import { Note, Thread } from '@prisma/client'
 import Editor, { EditorMode } from './Editor'
 import NoteListScrap from './NoteListScrap'
-import NoteListMonologue from './NoteListMonologue'
+import NoteListMonologue, { NoteGroupList } from './NoteListMonologue'
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { NoteType } from './NoteList'
 
@@ -30,6 +30,52 @@ export function createNoteGroup(notes: NoteType[]): NoteType[][] {
 
     return accumulator
   }, new Array<NoteType[]>())
+}
+
+export type NoteListGroupedByDate = {
+  date: Date
+  notes: NoteType[]
+}
+
+/**
+ * 日付をそのままに時刻情報を切り捨てる
+ * @param date
+ */
+function truncateDate(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+/*
+ * メモを日付ごとにグループ化
+ * @param notes 作成日時で降順ソートされたメモのリスト
+ */
+export function groupNoteByDate(notes: NoteType[]): NoteListGroupedByDate[] {
+  return notes.reduce((accumulator, currrent) => {
+    if (accumulator.length === 0)
+      return [
+        {
+          date: truncateDate(currrent.createdAt),
+          notes: [currrent],
+        },
+      ]
+
+    const lastGroup = accumulator[accumulator.length - 1]
+    const lastNote = lastGroup.notes[lastGroup.notes.length - 1]
+
+    if (
+      lastNote.createdAt.getDate() === currrent.createdAt.getDate() &&
+      lastNote.createdAt.getMonth() === currrent.createdAt.getMonth() &&
+      lastNote.createdAt.getFullYear() === currrent.createdAt.getFullYear()
+    )
+      lastGroup.notes.push(currrent)
+    else
+      accumulator.push({
+        date: truncateDate(currrent.createdAt),
+        notes: [currrent],
+      })
+
+    return accumulator
+  }, new Array<NoteListGroupedByDate>())
 }
 
 export function useNoteList(
@@ -133,14 +179,21 @@ export const NoteList = memo(
     onNoteRemoveClicked,
   }: NoteListProps) => {
     const [notesTransformed, mode] = useMemo(
-      function (): [NoteType[], 'scrap'] | [NoteType[][], 'monologue'] {
+      function (): [NoteType[], 'scrap'] | [NoteGroupList, 'monologue'] {
         const mode =
           displayMode === 'monologue' || displayMode === 'scrap'
             ? displayMode
             : 'monologue'
 
         if (mode === 'scrap') return [notes, mode]
-        else return [createNoteGroup(notes), mode]
+        else
+          return [
+            groupNoteByDate(notes).map((x) => ({
+              date: x.date,
+              noteGroups: createNoteGroup(x.notes),
+            })),
+            mode,
+          ]
       },
       [notes, displayMode]
     )
