@@ -5,6 +5,7 @@ import AddIcon from './icons/AddIcon'
 import MoreVerticalIcon from './icons/MoreVerticalIcon'
 import SettingsIcon from './icons/SettingsIcon'
 import DeleteIcon from './icons/DeleteIcon'
+import CheckmarkIcon from './icons/CheckmarkIcon'
 
 type ContextMenuPosition = {
   left: number
@@ -69,13 +70,16 @@ function RadioButtonWithCheckmark({
     <label className="flex items-center justify-between gap-10" htmlFor={value}>
       {label}
       <input
-        className="invisible checked:visible"
+        className="peer hidden"
         name={name}
         id={value}
         type="radio"
         checked={checked}
         onChange={onChange}
       />
+      <span className="invisible peer-checked:visible">
+        <CheckmarkIcon />
+      </span>
     </label>
   )
 }
