@@ -243,7 +243,7 @@ export default memo(function SideMenu({
   }
 
   return (
-    <div className="text-midnight-50 bg-midnight-300 dark:bg-midnight-950 px-2">
+    <div className="text-midnight-50 bg-midnight-300 dark:bg-midnight-950 grid grid-rows-[auto_auto_1fr] px-2">
       <div className="flex h-11 items-center justify-between">
         <h2 className="flex items-center gap-3 pl-2 text-base">
           <ThreadIcon />
@@ -258,9 +258,7 @@ export default memo(function SideMenu({
         </button>
       </div>
 
-      {hasErrorOccured && <p className="text-red-600">問題が発生しました</p>}
-
-      <ul>
+      <ul className="overflow-y-auto">
         {threads.map((thread) => {
           return (
             <li
@@ -337,18 +335,22 @@ export default memo(function SideMenu({
         )}
       </ul>
 
-      <hr className="dark:bg-midnight-700 my-3 h-px border-0" />
+      <div>
+        {hasErrorOccured && <p className="text-red-600">問題が発生しました</p>}
 
-      <ul>
-        <SideMenuLi onClick={onTrashClicked}>
-          <DeleteIcon className="fill-midnight-50" />
-          ごみ箱
-        </SideMenuLi>
-        <SideMenuLi onClick={onSettingsClicked}>
-          <SettingsIcon className="h-4 w-4" />
-          設定
-        </SideMenuLi>
-      </ul>
+        <hr className="dark:bg-midnight-700 my-3 h-px border-0" />
+
+        <ul>
+          <SideMenuLi onClick={onTrashClicked}>
+            <DeleteIcon className="fill-midnight-50" />
+            ごみ箱
+          </SideMenuLi>
+          <SideMenuLi onClick={onSettingsClicked}>
+            <SettingsIcon className="h-4 w-4" />
+            設定
+          </SideMenuLi>
+        </ul>
+      </div>
     </div>
   )
 })
