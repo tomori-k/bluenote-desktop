@@ -15,6 +15,18 @@ function formatTime(date: Date) {
   return `${hour}:${minute}`
 }
 
+/**
+ * YYYY年MM月DD日の形式にフォーマットする
+ */
+function formatDate(date: Date) {
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+  const year = date.getFullYear()
+  const month = pad(date.getMonth() + 1)
+  const day = pad(date.getDate())
+
+  return `${year}年${month}月${day}日`
+}
+
 function reversed<T>(array: T[]) {
   return array.map((_, i) => array[array.length - 1 - i])
 }
@@ -130,7 +142,14 @@ function NoteListWithDate({
 
   return (
     <>
-      <li className="sticky top-0">{date.toString()}</li>
+      <li className="relative h-0">
+        <div className="border-midnight-600 absolute left-0 right-0 top-3 border-t"></div>
+      </li>
+      <li className="sticky top-1 z-10 h-6 text-center">
+        <span className="bg-midnight-500 rounded-full px-5 py-1.5 text-xs">
+          {formatDate(date)}
+        </span>
+      </li>
       <li>
         <ul>
           {reversedGroups.map((noteGroup) => (
