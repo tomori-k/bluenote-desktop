@@ -143,12 +143,12 @@ function NoteListWithDate({
   return (
     <>
       <li className="relative h-0">
-        <div className="border-midnight-600 absolute left-0 right-0 top-3 border-t"></div>
+        <div className="border-midnight-600 absolute left-0 right-0 top-3.5 border-t"></div>
       </li>
-      <li className="sticky top-1 z-10 h-6 text-center">
-        <span className="bg-midnight-500 rounded-full px-5 py-1.5 text-xs">
+      <li className="sticky top-1 z-10 flex h-7 justify-center">
+        <p className="bg-midnight-500 flex h-full items-center rounded-full px-5 text-xs leading-none">
           {formatDate(date)}
-        </span>
+        </p>
       </li>
       <li>
         <ul>
