@@ -412,7 +412,7 @@ function AddSyncDevice() {
 }
 
 enum SettingsTab {
-  Appearance,
+  // Appearance,
   DataSync,
   AddSyncDevice,
 }
@@ -422,7 +422,7 @@ export default function SettingsModal({
   onClose,
   onUpdate,
 }: SettingsProps) {
-  const [tab, setTab] = useState(SettingsTab.Appearance)
+  const [tab, setTab] = useState(SettingsTab.DataSync)
 
   return (
     <div
@@ -439,12 +439,12 @@ export default function SettingsModal({
         </h2>
         <div className="divide-midnight-100 dark:divide-midnight-600 grid h-full grid-cols-[auto_1fr] divide-x pb-2">
           <ul className="w-36 px-2">
-            <SettingsSideMenuItem
+            {/* <SettingsSideMenuItem
               selected={tab === SettingsTab.Appearance}
               onClick={() => setTab(SettingsTab.Appearance)}
             >
               外観
-            </SettingsSideMenuItem>
+            </SettingsSideMenuItem> */}
             <SettingsSideMenuItem
               selected={
                 tab === SettingsTab.DataSync ||
@@ -456,9 +456,10 @@ export default function SettingsModal({
             </SettingsSideMenuItem>
           </ul>
 
-          {tab === SettingsTab.Appearance ? (
+          {/* {tab === SettingsTab.Appearance ? (
             <Appearance />
-          ) : tab === SettingsTab.DataSync ? (
+          ) : */}
+          {tab === SettingsTab.DataSync ? (
             <DataSync
               onAddSyncDevice={() => setTab(SettingsTab.AddSyncDevice)}
             />
