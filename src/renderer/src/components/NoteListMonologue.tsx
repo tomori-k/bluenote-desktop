@@ -7,12 +7,14 @@ import TextBulletListTreeIcon from './icons/TextBulletListTreeIcon'
 import { toHtml } from '../markdown/markdown'
 import { ChildrenCountView, NoteType } from './NoteList'
 
-function formatTime(date: Date) {
-  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+function formatHour(date: Date) {
   const hour = date.getHours()
-  const minute = pad(date.getMinutes())
+  return `${hour}`
+}
 
-  return `${hour}:${minute}`
+function formatMinutes(date: Date) {
+  const minutes = date.getMinutes()
+  return `${minutes < 10 ? '0' : ''}${minutes}`
 }
 
 /**
@@ -60,16 +62,18 @@ function NoteGroupItem({
 }) {
   return (
     <li className="hover:bg-midnight-100 hover:dark:bg-midnight-700 group relative grid grid-cols-[auto_1fr] py-1">
-      <div className="w-16 pl-2 pr-4 pt-[1px] text-xs">
+      <div className="w-16 px-2.5 pt-0.5 text-xs">
         <p
           className={
             (!isLastItem &&
             (note.childrenCount == null || note.childrenCount === 0)
               ? 'invisible opacity-50 group-hover:visible'
-              : '') + ' dark:text-midnight-200 pb-1 pr-2 text-right'
+              : '') +
+            ' dark:text-midnight-200 grid grid-cols-[1fr_auto_1fr] items-center pb-2 leading-none'
           }
         >
-          {formatTime(note.createdAt)}
+          <span className="text-right">{formatHour(note.createdAt)}</span>:
+          <span>{formatMinutes(note.createdAt)}</span>
         </p>
         {note.childrenCount != null && note.childrenCount > 0 && (
           <ChildrenCountView>{note.childrenCount}</ChildrenCountView>
