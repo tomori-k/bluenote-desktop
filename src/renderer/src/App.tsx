@@ -12,7 +12,7 @@ import DeleteIcon from './components/icons/DeleteIcon'
 import SearchIcon from './components/icons/SearchIcon'
 import SettingsModal from './components/SettingsModal'
 import SyncIcon from './components/icons/SyncIcon'
-import AppLayout from './components/AppLayout'
+import AppLayout, { AppLayoutParams } from './components/AppLayout'
 import { Settings, getDefaultSettings } from '../../common/settings'
 
 function useSearchDebounce(value: string) {
@@ -95,14 +95,14 @@ function App() {
   }
 
   async function onSettingsUpdate(settings: Settings) {
-    try {
-      await window.settings.updateSettings(settings)
-      setSettings(settings)
-    } catch (e) {
-      setHasErrorOccured(true)
-    }
+    setSettings(settings)
   }
 
+  const onAppLayoutChanged = useCallback((appLayoutParams: AppLayoutParams) => {
+    setSettings((settings) => ({ ...settings, appLayoutParams }))
+  }, [])
+
+  // 設定読み込み
   useEffect(() => {
     async function getSettings() {
       try {
@@ -115,6 +115,12 @@ function App() {
 
     getSettings()
   }, [])
+
+  // 設定保存
+  // メインプロセスに持っていくだけなので頻繁に呼んでも問題ない
+  useEffect(() => {
+    window.settings.transferToMainProcess(settings)
+  }, [settings])
 
   return (
     <div className="text-midnight-950 bg-midnight-50 dark:text-midnight-50 grid h-screen grid-rows-[auto_minmax(0,_1fr)]">
@@ -144,6 +150,8 @@ function App() {
         </button>
       </div>
       <AppLayout
+        appLayoutParams={settings.appLayoutParams}
+        onAppLayoutChanged={onAppLayoutChanged}
         sideMenu={
           isSideMenuOpen ? (
             <SideMenu

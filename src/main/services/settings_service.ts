@@ -7,6 +7,8 @@ import {
 } from '../../common/settings'
 
 export class SettingsService {
+  private settings: Settings | null = null
+
   constructor(readonly appDataDir: string) {}
 
   /**
@@ -20,23 +22,37 @@ export class SettingsService {
    * 設定を読み込む
    */
   public async getSettings(): Promise<Settings> {
-    const json = await fs.readFile(this.getSettingsFilePath(), 'utf-8')
-    const settings = JSON.parse(json)
-    const defaultValues = getDefaultSettings()
+    if (this.settings == null) {
+      try {
+        const json = await fs.readFile(this.getSettingsFilePath(), 'utf-8')
+        const settings = JSON.parse(json)
+        const defaultValues = getDefaultSettings()
 
-    return validateSettings({
-      ...defaultValues,
-      ...settings,
-    })
+        this.settings = validateSettings({
+          ...defaultValues,
+          ...settings,
+        })
+      } catch (e) {
+        this.settings = getDefaultSettings()
+      }
+    }
+
+    return this.settings
+  }
+
+  public updateSettings(settings: Settings) {
+    this.settings = settings
   }
 
   /**
-   * 設定を更新する
+   * 設定を保存する
    */
-  public async updateSettings(settings: Settings): Promise<void> {
+  public async saveSettings(): Promise<void> {
+    if (this.settings == null) return
+
     await fs.writeFile(
       this.getSettingsFilePath(),
-      JSON.stringify(settings),
+      JSON.stringify(this.settings),
       'utf-8'
     )
   }

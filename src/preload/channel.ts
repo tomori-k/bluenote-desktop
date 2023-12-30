@@ -47,7 +47,7 @@ const _NewIpcChannel = {
 
   // settings
   GetSettings: 'get-settings',
-  UpdateSettings: 'update-settings',
+  TransferToMain: 'transfer-to-main',
 } as const
 
 export type IpcInvokeChannel =

@@ -1,27 +1,35 @@
 import { useState, useRef, useEffect } from 'react'
 
 const WIDTH_RESIZER_PX = 4
-const WIDTH_DEFAULT_SIDE_MENU_PX = 200
 const WIDTH_DEFAULT_TAB_PX = 300
+
+export type AppLayoutParams = {
+  sideMenu: number
+  tabs: Record<string, number | undefined>
+}
+
+type AppLayoutProps = {
+  sideMenu: React.ReactNode | null
+  mainView: React.ReactNode
+  tabs: (React.ReactElement | null)[]
+  appLayoutParams: AppLayoutParams
+  onAppLayoutChanged: (appLayoutColumns: AppLayoutParams) => void
+}
 
 export default function AppLayout({
   sideMenu,
   mainView,
   tabs,
-}: {
-  sideMenu: React.ReactNode | null
-  mainView: React.ReactNode
-  tabs: (React.ReactElement | null)[]
-}) {
+  appLayoutParams,
+  onAppLayoutChanged,
+}: AppLayoutProps) {
+  const { sideMenu: sideMenuWidth, tabs: tabWidths } = appLayoutParams
+
   // assertion
   for (const tab of tabs) {
     if (tab != null && tab.key == null) throw new Error('key must be specified')
   }
 
-  const [sideMenuWidth, setSideMenuWidth] = useState(WIDTH_DEFAULT_SIDE_MENU_PX)
-  const [tabWidths, setTabWidths] = useState<
-    Record<string, number | undefined>
-  >({})
   const refTabs = useRef<([string, HTMLDivElement] | null)[]>([])
   const [isDraggingSideMenuResizer, setIsDraggingSideMenuResizer] =
     useState(false)
@@ -93,7 +101,7 @@ export default function AppLayout({
     const maxWidth = vw - calculateTabWidthSum() - WIDTH_RESIZER_PX
     const newWidth = Math.min(mouseX, maxWidth)
 
-    setSideMenuWidth(newWidth)
+    onAppLayoutChanged({ ...appLayoutParams, sideMenu: newWidth })
   }
 
   onResizeTabNextToMainView.current = function onResizeTabNextToMainView(
@@ -117,7 +125,10 @@ export default function AppLayout({
     const bounds = tab.getBoundingClientRect()
     const w = Math.min(Math.max(tabWidth + bounds.x - mouseX, 0), maxWidth)
 
-    setTabWidths({ ...tabWidths, [key]: w })
+    onAppLayoutChanged({
+      ...appLayoutParams,
+      tabs: { ...tabWidths, [key]: w },
+    })
   }
 
   onResizeTabNextToTab.current = function onResizeTabNextToTab(mouseX: number) {
@@ -133,24 +144,19 @@ export default function AppLayout({
 
     const bounds = tabRight.getBoundingClientRect()
     const delta = bounds.x - mouseX
+    const deltaActual =
+      delta >= 0
+        ? Math.min(getTabWidth(keyLeft), delta)
+        : Math.max(-getTabWidth(keyRight), delta)
 
-    if (delta >= 0) {
-      const deltaActual = Math.min(getTabWidth(keyLeft), delta)
-
-      setTabWidths({
+    onAppLayoutChanged({
+      ...appLayoutParams,
+      tabs: {
         ...tabWidths,
         [keyLeft]: getTabWidth(keyLeft) - deltaActual,
         [keyRight]: getTabWidth(keyRight) + deltaActual,
-      })
-    } else {
-      const deltaActual = Math.max(-getTabWidth(keyRight), delta)
-
-      setTabWidths({
-        ...tabWidths,
-        [keyLeft]: getTabWidth(keyLeft) - deltaActual,
-        [keyRight]: getTabWidth(keyRight) + deltaActual,
-      })
-    }
+      },
+    })
   }
 
   return (

@@ -10,7 +10,7 @@ import { SyncService } from './services/sync_service'
 import { SettingsService } from './services/settings_service'
 import { SyncCompanion } from './sync/companion'
 import { diff } from './sync/diff'
-import { Settings, validateSettings } from '../common/settings'
+import { validateSettings } from '../common/settings'
 
 const prisma = new PrismaClient()
 const deviceService = new DeviceService(prisma)
@@ -360,12 +360,12 @@ const createWindow = async () => {
       return await settingsService.getSettings()
     },
 
-    [IpcInvokeChannel.UpdateSettings]: async (
+    [IpcInvokeChannel.TransferToMain]: (
       _: Electron.IpcMainInvokeEvent,
-      settings: unknown
+      value: unknown
     ) => {
-      const validated = validateSettings(settings)
-      await settingsService.updateSettings(validated)
+      const validated = validateSettings(value)
+      settingsService.updateSettings(validated)
     },
   }
 
@@ -417,4 +417,8 @@ app.on('before-quit', async () => {
   console.log('quitting...')
   bluetooth.stopSyncServer()
   await prisma.$disconnect()
+})
+
+app.on('window-all-closed', async () => {
+  await settingsService.saveSettings()
 })
