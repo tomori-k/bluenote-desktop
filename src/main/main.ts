@@ -20,9 +20,13 @@ const syncService = new SyncService(prisma)
 const settingsService = new SettingsService(app.getPath('userData'))
 
 const createWindow = async () => {
+  const windowProps = await settingsService.getWindowProps()
+
   const window = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: windowProps.width,
+    height: windowProps.height,
+    x: windowProps.x,
+    y: windowProps.y,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
@@ -405,6 +409,10 @@ const createWindow = async () => {
 
   // データ同期サーバ起動
   bluetooth.startSyncServer()
+
+  window.on('close', () => {
+    settingsService.updateWindowProps(window.getBounds())
+  })
 
   window.loadURL('http://localhost:5173')
 }

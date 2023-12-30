@@ -55,7 +55,7 @@ function App() {
   const [searchText, setSearchText] = useState('')
   const searchTextDebounced = useSearchDebounce(searchText)
   const [hasErrorOccured, setHasErrorOccured] = useState(false) // todo: これをどこかで表示する
-  const [settings, setSettings] = useState<Settings>(getDefaultSettings())
+  const [settings, setSettings] = useState<Settings | null>(null)
 
   const onNoteInThreadClicked = useCallback((note: Note) => {
     setSelection((selection) => ({ ...selection, note }))
@@ -119,7 +119,7 @@ function App() {
   // 設定保存
   // メインプロセスに持っていくだけなので頻繁に呼んでも問題ない
   useEffect(() => {
-    window.settings.transferToMainProcess(settings)
+    if (settings != null) window.settings.transferToMainProcess(settings)
   }, [settings])
 
   return (
@@ -150,7 +150,7 @@ function App() {
         </button>
       </div>
       <AppLayout
-        appLayoutParams={settings.appLayoutParams}
+        appLayoutParams={(settings ?? getDefaultSettings()).appLayoutParams}
         onAppLayoutChanged={onAppLayoutChanged}
         sideMenu={
           isSideMenuOpen ? (
@@ -219,7 +219,7 @@ function App() {
       />
       {isSettingsModalOpen && (
         <SettingsModal
-          settings={settings}
+          settings={settings ?? getDefaultSettings()}
           onClose={() => setIsSettingsModalOpen(false)}
           onUpdate={onSettingsUpdate}
         />
