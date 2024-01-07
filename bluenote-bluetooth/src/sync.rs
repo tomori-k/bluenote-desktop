@@ -3,7 +3,6 @@ pub mod async_writer;
 pub mod client;
 pub mod server;
 
-const PROTOCOL_VERSION: u32 = 2;
 const REQUEST_THREAD_UPDATES: u8 = 0;
 const REQUEST_ALL_NOTES_IN_THREAD: u8 = 1;
 const REQUEST_ALL_NOTES_IN_TREE: u8 = 2;

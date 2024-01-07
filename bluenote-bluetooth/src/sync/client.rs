@@ -18,7 +18,7 @@ use windows::{
 
 use crate::{error::Error, Result, RUNTIME, UUID_BLUENOTE_RFCOMM};
 
-use super::{PROTOCOL_VERSION, SYNC_ALLOWED, SYNC_FAILED, SYNC_SUCCESS};
+use super::{SYNC_ALLOWED, SYNC_FAILED, SYNC_SUCCESS};
 
 /// Bluetooth ペアリング済み & Bluenote の UUID をもつデバイスを列挙
 pub async fn enumerate_sync_companions() -> windows::core::Result<Vec<String>> {
@@ -112,7 +112,7 @@ impl SyncClient {
         Ok(socket)
     }
 
-    async fn begin_sync_impl(&mut self) -> Result<()> {
+    async fn begin_sync_impl(&mut self, sync_enabled_uuids: &Vec<String>) -> Result<()> {
         let socket = Self::connect(&self.companion_device_id).await?;
 
         let reader = DataReader::CreateDataReader(&socket.InputStream()?)?;
@@ -121,27 +121,11 @@ impl SyncClient {
         reader.SetByteOrder(ByteOrder::LittleEndian)?;
         writer.SetByteOrder(ByteOrder::LittleEndian)?;
 
-        // 1. プロトコルバージョンのチェック
-        reader.LoadAsync(4)?.await?;
-        let version = reader.ReadUInt32()?;
+        // 1. UUID を交換し、同期が有効な相手か確認 & 相手の同期の許可を得る
+        self.exchange_uuid(&sync_enabled_uuids, &reader, &writer)
+            .await?;
 
-        writer.WriteUInt32(PROTOCOL_VERSION)?;
-        writer.StoreAsync()?.await?;
-        writer.FlushAsync()?.await?;
-
-        if version != PROTOCOL_VERSION {
-            return Err(Error::SyncError(format!(
-                "The companion uses different protocol: {}",
-                version
-            )));
-        }
-
-        // 2. UUID の送信
-        writer.WriteBytes(self.my_uuid.as_bytes())?;
-        writer.StoreAsync()?.await?;
-        writer.FlushAsync()?.await?;
-
-        // 3. 同期が許可されたかどうかの確認
+        // 2. 同期が許可されたかどうかの確認
         reader.LoadAsync(1)?.await?;
         let response = reader.ReadByte()?;
 
@@ -233,10 +217,47 @@ impl SyncClient {
         }
     }
 
+    /// UUID を交換し、同期が有効な相手か確認 & 相手の同期の許可を得る
+    async fn exchange_uuid(
+        &self,
+        sync_enabled_uuids: &Vec<String>, // デバイスそんなに多くならないのでこれでいいっしょ、多分
+        reader: &DataReader,
+        writer: &DataWriter,
+    ) -> Result<()> {
+        let (send_result, uuid): (Result<()>, Result<String>) = futures::join!(
+            async {
+                // 自身のデバイスIDを送信
+                writer.WriteString(&HSTRING::from(&self.my_uuid))?;
+                writer.StoreAsync()?.await?;
+                writer.FlushAsync()?.await?;
+
+                Ok(())
+            },
+            async {
+                // 相手のデバイスの UUID を受信
+                reader.LoadAsync(36)?.await?;
+                Ok(reader.ReadString(36)?.to_string())
+            }
+        );
+
+        send_result?;
+        let uuid = uuid?;
+
+        sync_enabled_uuids
+            .iter()
+            .find(|&v| v == &uuid)
+            .ok_or(Error::SyncError(format!("Sync not enabled: {}", &uuid)))?;
+
+        Ok(())
+    }
+
     /// 同期を開始する
     #[napi(ts_return_type = "Promise<void>")]
-    pub fn begin_sync(&mut self) -> AsyncTask<BeginSyncTask> {
-        AsyncTask::new(BeginSyncTask { client: self })
+    pub fn begin_sync(&mut self, sync_enabled_uuids: Vec<String>) -> AsyncTask<BeginSyncTask> {
+        AsyncTask::new(BeginSyncTask {
+            client: self,
+            sync_enabled_uuids,
+        })
     }
 
     async fn request_data_impl(&self, request_id: u8, uuid: &Option<String>) -> Result<String> {
@@ -373,6 +394,7 @@ impl Drop for SyncClient {
 
 pub struct BeginSyncTask<'a> {
     client: &'a mut SyncClient,
+    sync_enabled_uuids: Vec<String>,
 }
 
 impl<'a> Task for BeginSyncTask<'a> {
@@ -380,7 +402,7 @@ impl<'a> Task for BeginSyncTask<'a> {
     type JsValue = JsUndefined;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        Ok(RUNTIME.block_on(self.client.begin_sync_impl())?)
+        Ok(RUNTIME.block_on(self.client.begin_sync_impl(&self.sync_enabled_uuids))?)
     }
 
     fn resolve(&mut self, env: Env, _: Self::Output) -> napi::Result<Self::JsValue> {

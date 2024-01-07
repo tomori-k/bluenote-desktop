@@ -20,7 +20,7 @@ use tokio::runtime::Runtime;
 type Result<T> = std::result::Result<T, crate::error::Error>;
 
 /// 同期の RFCOMM サービス UUID
-static UUID_BLUENOTE_RFCOMM: &str = "41f4bde2-0492-4bf5-bae2-4451be148999";
+static UUID_BLUENOTE_RFCOMM: &str = "44734f5c-79b4-4cd1-a312-e96f5b39ff93";
 
 /// 同期初期化の RFCOMM サービス UUID
 static UUID_BLUENOTE_RFCOMM_INIT: &str = "c144d029-2a62-4cfc-b39c-ca6ce173cb3f";
@@ -251,6 +251,20 @@ pub fn respond_to_sync_request(allow: bool) {
         .send_result(allow);
 }
 
+/// 自身のデバイス ID がリクエストされたときのコールバックを設定する
+#[napi(ts_args_type = "callback: (err: null | Error) => void")]
+pub fn set_on_my_uuid_requested(callback: JsFunction) -> napi::Result<()> {
+    let tsfn = callback.create_threadsafe_function(0, |_: ThreadSafeCallContext<()>| {
+        Ok::<Vec<()>, napi::Error>(vec![])
+    })?;
+
+    crate::sync::server::SYNC_SERVICE
+        .on_my_uuid_requested
+        .set_callback(tsfn);
+
+    Ok(())
+}
+
 /// 現在時刻がリクエストされたときのコールバックを設定する
 #[napi(ts_args_type = "callback: (err: null | Error) => void")]
 pub fn set_on_now_requested(callback: JsFunction) -> napi::Result<()> {
@@ -263,6 +277,14 @@ pub fn set_on_now_requested(callback: JsFunction) -> napi::Result<()> {
         .set_callback(tsfn);
 
     Ok(())
+}
+
+/// 自身のデバイス ID 取得リクエストに対する応答を返す
+#[napi]
+pub fn respond_to_my_uuid_request(my_uuid: String) {
+    crate::sync::server::SYNC_SERVICE
+        .on_my_uuid_requested
+        .send_result(my_uuid);
 }
 
 /// 現在時刻リクエストに対する応答を返す

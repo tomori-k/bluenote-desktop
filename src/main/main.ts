@@ -70,6 +70,11 @@ const createWindow = async () => {
     bluetooth.respondToSyncRequest(true)
   })
 
+  bluetooth.setOnMyUuidRequested(async (_) => {
+    const uuid = await deviceService.getMyUuid()
+    bluetooth.respondToMyUuidRequest(uuid)
+  })
+
   bluetooth.setOnNowRequested((_) => {
     console.log('Now requested')
     bluetooth.respondToNowRequest(new Date().toUTCString())
@@ -383,13 +388,16 @@ const createWindow = async () => {
 
     const deviceIds = await bluetooth.enumerateSyncCompanions()
     const myUuid = await deviceService.getMyUuid()
+    const syncEnabledUuids = (
+      await deviceService.getAllSyncEnabledDevices()
+    ).map((x) => x.id)
 
     for (const deviceId of deviceIds) {
       const syncClient = bluetooth.SyncClient.createInstance(myUuid, deviceId)
       let success = false
 
       try {
-        await syncClient.beginSync()
+        await syncClient.beginSync(syncEnabledUuids)
 
         const companion = new SyncCompanion(syncClient)
         const d = await diff(companion, threadService, noteService, new Date())

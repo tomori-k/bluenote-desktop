@@ -28,6 +28,7 @@ pub static SYNC_SERVICE: SyncServiceImpl = SyncServiceImpl {
     on_note_updates_in_thread_requested: NonBlockingThreadsafeFunctionWithReturn::new(),
     on_note_updates_in_tree_requested: NonBlockingThreadsafeFunctionWithReturn::new(),
     on_update_synced_at_requested: NonBlockingThreadsafeFunctionWithReturn::new(),
+    on_my_uuid_requested: NonBlockingThreadsafeFunctionWithReturn::new(),
 };
 
 struct SyncServerState {
@@ -62,7 +63,7 @@ pub async fn start() -> Result<()> {
         )?
         .await?;
 
-    provider.StartAdvertising(&listener)?; // 必要
+    provider.StartAdvertisingWithRadioDiscoverability(&listener, true)?; // 必要
 
     let mut state = SERVER_STATE.lock().unwrap();
     *state = Some(SyncServerState { listener, provider });
@@ -120,6 +121,9 @@ trait SyncService {
     /// デバイスに対する同期を許可しているか
     async fn is_sync_allowed(&self, uuid: &str) -> Result<bool>;
 
+    /// 自身のデバイス ID を取得
+    async fn get_my_uuid(&self) -> Result<String>;
+
     /// 現在時刻を取得
     async fn now(&self) -> Result<String>;
 
@@ -173,10 +177,16 @@ where
 
 /// データを送信して flush する
 /// 先頭に 4 バイト、リトルエンディアンでデータのサイズを書き込み、以降データを書き込む
-async fn write_data_and_flush<W>(writer: &mut W, data: &[u8]) -> tokio::io::Result<()>
+async fn write_data_and_flush<W>(
+    request_uuid: &String,
+    writer: &mut W,
+    data: &[u8],
+) -> tokio::io::Result<()>
 where
     W: AsyncWrite + Unpin,
 {
+    let request_uuid = request_uuid.as_bytes();
+    writer.write_all(request_uuid).await?;
     writer.write_u32_le(data.len() as u32).await?;
     writer.write_all(data).await?;
     writer.flush().await?;
@@ -191,27 +201,32 @@ where
     W: AsyncWrite + Unpin,
     S: SyncService,
 {
-    // 1. プロトコルバージョンの交換
+    let my_uuid = sync_service.get_my_uuid().await?;
 
-    writer.write_u32_le(crate::sync::PROTOCOL_VERSION).await?;
-    writer.flush().await?;
+    // 1. UUID の交換
+    let (send_result, uuid): (Result<()>, Result<String>) = futures::join!(
+        async {
+            // 自身のデバイスIDを送信
+            let my_uuid = my_uuid.as_bytes();
+            writer.write_all(&my_uuid).await?;
+            writer.flush().await?;
 
-    let version = reader.read_u32_le().await?;
+            Ok(())
+        },
+        async {
+            // 相手のデバイスの UUID を受信
+            let uuid = read_uuid(reader).await?;
 
-    // 違ければ接続を終了
-    if version != crate::sync::PROTOCOL_VERSION {
-        return Err(crate::error::Error::SyncError(format!(
-            "The sync companion uses different protocol: {}",
-            version
-        )));
-    }
+            Ok(uuid)
+        }
+    );
 
-    // 2. 相手の UUID を受信
-    let uuid = read_uuid(reader).await?;
+    send_result?;
+    let uuid = uuid?;
 
     println!("UUID: {}", uuid);
 
-    // 3. 同期設定を取得
+    // 2. 同期設定を取得
 
     // 登録されてないデバイス、もしくは同期がオフになっている相手なら同期を拒否
     if !sync_service.is_sync_allowed(&uuid).await? {
@@ -237,21 +252,22 @@ where
             // スレッドの更新を送信
             crate::sync::REQUEST_THREAD_UPDATES => {
                 let updated = sync_service.get_thread_updates(&uuid, &updated_end).await?;
+                let request_uuid = " ".repeat(36);
 
-                write_data_and_flush(writer, updated.as_bytes()).await?;
+                write_data_and_flush(&request_uuid, writer, updated.as_bytes()).await?;
             }
             // スレッド内のメモを送信
             crate::sync::REQUEST_ALL_NOTES_IN_THREAD => {
                 let thread_id = read_uuid(reader).await?;
                 let notes = sync_service.get_all_notes_in_thread(&thread_id).await?;
 
-                write_data_and_flush(writer, notes.as_bytes()).await?;
+                write_data_and_flush(&thread_id, writer, notes.as_bytes()).await?;
             }
             crate::sync::REQUEST_ALL_NOTES_IN_TREE => {
                 let note_id = read_uuid(reader).await?;
                 let notes = sync_service.get_all_notes_in_tree(&note_id).await?;
 
-                write_data_and_flush(writer, notes.as_bytes()).await?;
+                write_data_and_flush(&note_id, writer, notes.as_bytes()).await?;
             }
             crate::sync::REQUEST_NOTE_UPDATES_IN_THREAD => {
                 let thread_id = read_uuid(reader).await?;
@@ -259,7 +275,7 @@ where
                     .get_note_updates_in_thread(&uuid, &thread_id, &updated_end)
                     .await?;
 
-                write_data_and_flush(writer, notes.as_bytes()).await?;
+                write_data_and_flush(&thread_id, writer, notes.as_bytes()).await?;
             }
             crate::sync::REQUEST_NOTE_UPDATES_IN_TREE => {
                 let note_id = read_uuid(reader).await?;
@@ -267,7 +283,7 @@ where
                     .get_note_updates_in_tree(&uuid, &note_id, &updated_end)
                     .await?;
 
-                write_data_and_flush(writer, notes.as_bytes()).await?;
+                write_data_and_flush(&note_id, writer, notes.as_bytes()).await?;
             }
             // 相手側で同期が正常に終了した
             crate::sync::SYNC_SUCCESS => {
@@ -312,6 +328,7 @@ pub struct SyncServiceImpl {
         NonBlockingThreadsafeFunctionWithReturn<RequestParamNoteUpdatesInTree, String>,
     pub on_update_synced_at_requested:
         NonBlockingThreadsafeFunctionWithReturn<RequestParamUpdateSyncedAt, ()>,
+    pub on_my_uuid_requested: NonBlockingThreadsafeFunctionWithReturn<(), String>,
 }
 
 pub struct RequestParamSyncPermission {
@@ -445,5 +462,9 @@ impl SyncService for SyncServiceImpl {
                 }),
         )
         .await?
+    }
+
+    async fn get_my_uuid(&self) -> Result<String> {
+        tokio::time::timeout(Duration::from_secs(5), self.on_my_uuid_requested.call(())).await?
     }
 }
